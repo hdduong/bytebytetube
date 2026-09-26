@@ -1,0 +1,652 @@
+export const genres = [
+  "Horror",
+  "Action",
+  "Drama",
+  "Sci-Fi",
+  "Comedy",
+  "Thriller",
+  "Animation",
+] as const;
+
+export type Genre = (typeof genres)[number];
+
+export const chips = [
+  "All",
+  "Horror",
+  "Action",
+  "Drama",
+  "Sci-Fi",
+  "Comedy",
+  "Thriller",
+  "Animation",
+  "New releases",
+  "Spoiler-free",
+  "Top rated",
+] as const;
+
+export type Chip = (typeof chips)[number];
+
+export type LibraryView =
+  | "home"
+  | "shorts"
+  | "subscriptions"
+  | "watch-later"
+  | "liked";
+
+export const exploreTopics = [
+  "Gaming",
+  "Music",
+  "Live",
+  "News",
+  "Learning",
+  "Sports",
+  "360° Video",
+] as const;
+
+export type ExploreTopic = (typeof exploreTopics)[number];
+
+export type OverlayPart = {
+  text: string;
+  tone?: "red";
+  style?: "poster" | "script";
+  underline?: boolean;
+};
+
+export type Video = {
+  id: string;
+  title: string;
+  genre?: Genre;
+  topic?: ExploreTopic;
+  live?: boolean;
+  duration: string;
+  channel: string;
+  avatar: string;
+  views: string;
+  uploaded: string;
+  thumbnail: string;
+  overlay: OverlayPart[][];
+  align: "left" | "center" | "right";
+  shelf: "fresh" | "popular";
+  newRelease?: boolean;
+  spoilerFree?: boolean;
+  topRated?: boolean;
+  subscribed?: boolean;
+};
+
+export function isGenre(value: string): value is Genre {
+  return genres.some((genre) => genre === value);
+}
+
+export const videos: Video[] = [
+  {
+    id: "worth-the-hype",
+    title: "The scariest film of the year?",
+    genre: "Horror",
+    duration: "8:24",
+    channel: "CineWithMaya",
+    avatar: "/avatars/avatar-maya.png",
+    views: "412K views",
+    uploaded: "5 days ago",
+    thumbnail: "/thumbnails/thumb-worth-the-hype.png",
+    align: "left",
+    shelf: "fresh",
+    newRelease: true,
+    spoilerFree: true,
+    topRated: true,
+    subscribed: true,
+    overlay: [
+      [{ text: "WORTH", style: "poster" }],
+      [
+        { text: "THE\u00A0", style: "poster" },
+        { text: "HYPE?", style: "poster", tone: "red" },
+      ],
+    ],
+  },
+  {
+    id: "pure-adrenaline",
+    title: "Nonstop action. But is it good?",
+    genre: "Action",
+    duration: "9:17",
+    channel: "FilmForge",
+    avatar: "/avatars/avatar-forge.png",
+    views: "289K views",
+    uploaded: "6 days ago",
+    thumbnail: "/thumbnails/thumb-pure-adrenaline.png",
+    align: "left",
+    shelf: "fresh",
+    topRated: true,
+    subscribed: true,
+    overlay: [
+      [{ text: "PURE", style: "poster" }],
+      [{ text: "ADRENALINE", style: "poster" }],
+    ],
+  },
+  {
+    id: "must-watch",
+    title: "This ending stayed with me",
+    genre: "Drama",
+    duration: "7:36",
+    channel: "The Movie Desk",
+    avatar: "/avatars/avatar-desk.png",
+    views: "178K views",
+    uploaded: "4 days ago",
+    thumbnail: "/thumbnails/thumb-must-watch.png",
+    align: "center",
+    shelf: "fresh",
+    newRelease: true,
+    spoilerFree: true,
+    subscribed: true,
+    overlay: [
+      [{ text: "A MUST-WATCH", style: "script", underline: true }],
+    ],
+  },
+  {
+    id: "scifi-done-right",
+    title: "A new sci-fi masterpiece?",
+    genre: "Sci-Fi",
+    duration: "10:12",
+    channel: "Nerd Frames",
+    avatar: "/avatars/avatar-nerd.png",
+    views: "526K views",
+    uploaded: "7 days ago",
+    thumbnail: "/thumbnails/thumb-scifi-done-right.png",
+    align: "right",
+    shelf: "fresh",
+    newRelease: true,
+    topRated: true,
+    overlay: [
+      [{ text: "SCI-FI", style: "poster" }],
+      [{ text: "DONE RIGHT", style: "poster" }],
+    ],
+  },
+  {
+    id: "stay-with-you",
+    title: "Horror that gets under your skin",
+    genre: "Horror",
+    duration: "8:51",
+    channel: "ScreenTalk",
+    avatar: "/avatars/avatar-screen.png",
+    views: "320K views",
+    uploaded: "9 days ago",
+    thumbnail: "/thumbnails/thumb-stay-with-you.png",
+    align: "left",
+    shelf: "fresh",
+    spoilerFree: true,
+    overlay: [
+      [{ text: "SOME FILMS", style: "poster" }],
+      [{ text: "STAY WITH YOU", style: "script" }],
+    ],
+  },
+  {
+    id: "bigger-faster",
+    title: "The perfect action movie?",
+    genre: "Action",
+    duration: "8:03",
+    channel: "Action Analyst",
+    avatar: "/avatars/avatar-action.png",
+    views: "415K views",
+    uploaded: "10 days ago",
+    thumbnail: "/thumbnails/thumb-bigger-faster.png",
+    align: "left",
+    shelf: "fresh",
+    newRelease: true,
+    topRated: true,
+    overlay: [
+      [{ text: "BIGGER", style: "poster" }],
+      [{ text: "FASTER", style: "poster" }],
+      [{ text: "BOLDER", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "its-the-people",
+    title: "Small story. Massive heart.",
+    genre: "Drama",
+    duration: "6:58",
+    channel: "Real Feelings",
+    avatar: "/avatars/avatar-feelings.png",
+    views: "261K views",
+    uploaded: "8 days ago",
+    thumbnail: "/thumbnails/thumb-its-the-people.png",
+    align: "center",
+    shelf: "fresh",
+    spoilerFree: true,
+    topRated: true,
+    overlay: [
+      [{ text: "IT'S", style: "script" }],
+      [{ text: "THE PEOPLE", style: "script", tone: "red" }],
+    ],
+  },
+  {
+    id: "brighter-tomorrow",
+    title: "The future never looked so good",
+    genre: "Sci-Fi",
+    duration: "9:29",
+    channel: "Galaxy Reviews",
+    avatar: "/avatars/avatar-galaxy.png",
+    views: "372K views",
+    uploaded: "9 days ago",
+    thumbnail: "/thumbnails/thumb-brighter-tomorrow.png",
+    align: "right",
+    shelf: "fresh",
+    spoilerFree: true,
+    overlay: [
+      [{ text: "A BRIGHTER", style: "poster" }],
+      [{ text: "TOMORROW?", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "performance-of-the-year",
+    title: "The performance of the year?",
+    genre: "Drama",
+    duration: "12:04",
+    channel: "Real Feelings",
+    avatar: "/avatars/avatar-feelings.png",
+    views: "890K views",
+    uploaded: "2 days ago",
+    thumbnail: "/thumbnails/thumb-popular-face.png",
+    align: "left",
+    shelf: "popular",
+    topRated: true,
+    newRelease: true,
+    overlay: [[{ text: "ONE ROLE.", style: "poster" }, { text: " EVERYTHING.", style: "poster", tone: "red" }]],
+  },
+  {
+    id: "look-back",
+    title: "We weren't supposed to look back",
+    genre: "Sci-Fi",
+    duration: "11:18",
+    channel: "Galaxy Reviews",
+    avatar: "/avatars/avatar-galaxy.png",
+    views: "640K views",
+    uploaded: "3 days ago",
+    thumbnail: "/thumbnails/thumb-popular-moon.png",
+    align: "left",
+    shelf: "popular",
+    spoilerFree: true,
+    topRated: true,
+    overlay: [[{ text: "DON'T LOOK BACK", style: "poster" }]],
+  },
+  {
+    id: "chase-decade",
+    title: "The chase scene of the decade",
+    genre: "Action",
+    duration: "9:42",
+    channel: "Action Analyst",
+    avatar: "/avatars/avatar-action.png",
+    views: "510K views",
+    uploaded: "1 day ago",
+    thumbnail: "/thumbnails/thumb-popular-highway.png",
+    align: "left",
+    shelf: "popular",
+    newRelease: true,
+    topRated: true,
+    overlay: [[{ text: "NEVER SLOW DOWN", style: "poster" }]],
+  },
+  {
+    id: "still-matters",
+    title: "Why this film still matters",
+    genre: "Drama",
+    duration: "14:05",
+    channel: "The Movie Desk",
+    avatar: "/avatars/avatar-desk.png",
+    views: "430K views",
+    uploaded: "4 days ago",
+    thumbnail: "/thumbnails/thumb-popular-theater.png",
+    align: "center",
+    shelf: "popular",
+    spoilerFree: true,
+    subscribed: true,
+    overlay: [[{ text: "STILL MATTERS", style: "script", underline: true }]],
+  },
+  {
+    id: "funniest-year",
+    title: "The funniest movie of the year?",
+    genre: "Comedy",
+    duration: "7:48",
+    channel: "Real Feelings",
+    avatar: "/avatars/avatar-feelings.png",
+    views: "198K views",
+    uploaded: "3 days ago",
+    thumbnail: "/thumbnails/thumb-comedy-diner.png",
+    align: "left",
+    shelf: "fresh",
+    newRelease: true,
+    spoilerFree: true,
+    overlay: [
+      [{ text: "ACTUALLY", style: "poster" }],
+      [{ text: "FUNNY", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "dont-trust",
+    title: "Don't trust the quiet one",
+    genre: "Thriller",
+    duration: "11:02",
+    channel: "ScreenTalk",
+    avatar: "/avatars/avatar-screen.png",
+    views: "305K views",
+    uploaded: "6 days ago",
+    thumbnail: "/thumbnails/thumb-thriller-street.png",
+    align: "left",
+    shelf: "fresh",
+    topRated: true,
+    overlay: [
+      [{ text: "DON'T", style: "poster" }],
+      [{ text: "TRUST THIS", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "real-heartbeat",
+    title: "Animation with a real heartbeat",
+    genre: "Animation",
+    duration: "9:05",
+    channel: "Nerd Frames",
+    avatar: "/avatars/avatar-nerd.png",
+    views: "244K views",
+    uploaded: "4 days ago",
+    thumbnail: "/thumbnails/thumb-animation-forest.png",
+    align: "left",
+    shelf: "fresh",
+    newRelease: true,
+    spoilerFree: true,
+    overlay: [
+      [{ text: "MORE THAN", style: "poster" }],
+      [{ text: "A CARTOON", style: "script" }],
+    ],
+  },
+  {
+    id: "rewatch-forever",
+    title: "The comedy you'll rewatch forever",
+    genre: "Comedy",
+    duration: "8:16",
+    channel: "The Movie Desk",
+    avatar: "/avatars/avatar-desk.png",
+    views: "480K views",
+    uploaded: "2 days ago",
+    thumbnail: "/thumbnails/thumb-comedy-stage.png",
+    align: "center",
+    shelf: "popular",
+    topRated: true,
+    subscribed: true,
+    overlay: [[{ text: "WORTH THE REWATCH", style: "script", underline: true }]],
+  },
+  {
+    id: "no-way-out",
+    title: "This thriller doesn't let go",
+    genre: "Thriller",
+    duration: "10:41",
+    channel: "CineWithMaya",
+    avatar: "/avatars/avatar-maya.png",
+    views: "560K views",
+    uploaded: "5 days ago",
+    thumbnail: "/thumbnails/thumb-thriller-stairs.png",
+    align: "left",
+    shelf: "popular",
+    topRated: true,
+    spoilerFree: true,
+    subscribed: true,
+    overlay: [[{ text: "NO WAY OUT", style: "poster" }]],
+  },
+  {
+    id: "cartoon-cry",
+    title: "The cartoon that made me cry",
+    genre: "Animation",
+    duration: "12:22",
+    channel: "Galaxy Reviews",
+    avatar: "/avatars/avatar-galaxy.png",
+    views: "710K views",
+    uploaded: "1 day ago",
+    thumbnail: "/thumbnails/thumb-animation-sky.png",
+    align: "right",
+    shelf: "popular",
+    newRelease: true,
+    topRated: true,
+    overlay: [
+      [{ text: "IT", style: "script" }],
+      [{ text: "GOT ME", style: "script", tone: "red" }],
+    ],
+  },
+];
+
+export const exploreVideos: Video[] = [
+  {
+    id: "boss-weekend",
+    title: "The boss that ruined my weekend",
+    topic: "Gaming",
+    duration: "18:42",
+    channel: "Nerd Frames",
+    avatar: "/avatars/avatar-nerd.png",
+    views: "1.2M views",
+    uploaded: "2 days ago",
+    thumbnail: "/thumbnails/explore-gaming.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "ONE MORE", style: "poster" }],
+      [{ text: "RUN", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "controller-pros",
+    title: "Controller settings the pros actually use",
+    topic: "Gaming",
+    duration: "12:05",
+    channel: "FilmForge",
+    avatar: "/avatars/avatar-forge.png",
+    views: "640K views",
+    uploaded: "5 days ago",
+    thumbnail: "/thumbnails/explore-gaming.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [[{ text: "DIAL IT IN", style: "poster" }]],
+  },
+  {
+    id: "song-of-the-week",
+    title: "The song that took over the week",
+    topic: "Music",
+    duration: "4:12",
+    channel: "Galaxy Reviews",
+    avatar: "/avatars/avatar-galaxy.png",
+    views: "2.4M views",
+    uploaded: "1 day ago",
+    thumbnail: "/thumbnails/explore-music.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "ON", style: "script" }],
+      [{ text: "REPEAT", style: "script", tone: "red" }],
+    ],
+  },
+  {
+    id: "chorus-built",
+    title: "Studio session: how the chorus was built",
+    topic: "Music",
+    duration: "9:33",
+    channel: "CineWithMaya",
+    avatar: "/avatars/avatar-maya.png",
+    views: "388K views",
+    uploaded: "4 days ago",
+    thumbnail: "/thumbnails/explore-music.png",
+    align: "center",
+    shelf: "fresh",
+    overlay: [[{ text: "IN THE ROOM", style: "poster" }]],
+  },
+  {
+    id: "late-show-live",
+    title: "Late show, no script",
+    topic: "Live",
+    live: true,
+    duration: "LIVE",
+    channel: "ScreenTalk",
+    avatar: "/avatars/avatar-screen.png",
+    views: "86K watching",
+    uploaded: "Started 24 min ago",
+    thumbnail: "/thumbnails/explore-live.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [[{ text: "WE'RE LIVE", style: "poster", tone: "red" }]],
+  },
+  {
+    id: "city-finals-live",
+    title: "City finals, happening now",
+    topic: "Live",
+    live: true,
+    duration: "LIVE",
+    channel: "Action Analyst",
+    avatar: "/avatars/avatar-action.png",
+    views: "142K watching",
+    uploaded: "Started 1 hour ago",
+    thumbnail: "/thumbnails/explore-live.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [[{ text: "DON'T LOOK AWAY", style: "poster" }]],
+  },
+  {
+    id: "overnight-brief",
+    title: "What changed overnight",
+    topic: "News",
+    duration: "6:18",
+    channel: "The Movie Desk",
+    avatar: "/avatars/avatar-desk.png",
+    views: "910K views",
+    uploaded: "8 hours ago",
+    thumbnail: "/thumbnails/explore-news.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "THE", style: "poster" }],
+      [{ text: "BRIEF", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "behind-headline",
+    title: "The story behind the headline",
+    topic: "News",
+    duration: "8:04",
+    channel: "Real Feelings",
+    avatar: "/avatars/avatar-feelings.png",
+    views: "455K views",
+    uploaded: "1 day ago",
+    thumbnail: "/thumbnails/explore-news.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [[{ text: "READ PAST IT", style: "poster" }]],
+  },
+  {
+    id: "learn-the-shot",
+    title: "Learn the shot in 10 minutes",
+    topic: "Learning",
+    duration: "10:02",
+    channel: "CineWithMaya",
+    avatar: "/avatars/avatar-maya.png",
+    views: "276K views",
+    uploaded: "3 days ago",
+    thumbnail: "/thumbnails/explore-learning.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "START", style: "poster" }],
+      [{ text: "HERE", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "how-editing-works",
+    title: "How editing actually works",
+    topic: "Learning",
+    duration: "14:20",
+    channel: "Nerd Frames",
+    avatar: "/avatars/avatar-nerd.png",
+    views: "501K views",
+    uploaded: "6 days ago",
+    thumbnail: "/thumbnails/explore-learning.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [[{ text: "CUT BY CUT", style: "poster" }]],
+  },
+  {
+    id: "last-second",
+    title: "Last-second finish, explained",
+    topic: "Sports",
+    duration: "7:55",
+    channel: "Action Analyst",
+    avatar: "/avatars/avatar-action.png",
+    views: "1.8M views",
+    uploaded: "12 hours ago",
+    thumbnail: "/thumbnails/explore-sports.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "LAST", style: "poster" }],
+      [{ text: "SECOND", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "play-missed",
+    title: "The play everyone missed",
+    topic: "Sports",
+    duration: "5:41",
+    channel: "FilmForge",
+    avatar: "/avatars/avatar-forge.png",
+    views: "733K views",
+    uploaded: "2 days ago",
+    thumbnail: "/thumbnails/explore-sports.png",
+    align: "right",
+    shelf: "fresh",
+    overlay: [[{ text: "WATCH AGAIN", style: "poster" }]],
+  },
+  {
+    id: "walk-the-set",
+    title: "Walk the set in 360",
+    topic: "360° Video",
+    duration: "3:48",
+    channel: "Galaxy Reviews",
+    avatar: "/avatars/avatar-galaxy.png",
+    views: "190K views",
+    uploaded: "4 days ago",
+    thumbnail: "/thumbnails/explore-360.png",
+    align: "center",
+    shelf: "fresh",
+    overlay: [[{ text: "LOOK AROUND", style: "poster" }]],
+  },
+  {
+    id: "concert-around",
+    title: "A concert, all the way around",
+    topic: "360° Video",
+    duration: "6:11",
+    channel: "ScreenTalk",
+    avatar: "/avatars/avatar-screen.png",
+    views: "268K views",
+    uploaded: "1 week ago",
+    thumbnail: "/thumbnails/explore-360.png",
+    align: "left",
+    shelf: "fresh",
+    overlay: [
+      [{ text: "360", style: "poster" }],
+      [{ text: "DEGREES", style: "poster", tone: "red" }],
+    ],
+  },
+];
+
+export function matchesChip(video: Video, chip: Chip) {
+  switch (chip) {
+    case "All":
+      return !video.topic;
+    case "New releases":
+      return Boolean(video.newRelease);
+    case "Spoiler-free":
+      return Boolean(video.spoilerFree);
+    case "Top rated":
+      return Boolean(video.topRated);
+    default:
+      return video.genre === chip && !video.topic;
+  }
+}
+
+export function matchesQuery(video: Video, query: string) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return [video.title, video.channel, video.genre, video.topic, video.duration]
+    .join(" ")
+    .toLowerCase()
+    .includes(needle);
+}

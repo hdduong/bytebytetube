@@ -1,0 +1,170 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useId, useRef, useState } from "react";
+import { BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
+
+type HeaderProps = {
+  query: string;
+  menuExpanded: boolean;
+  onQueryChange: (value: string) => void;
+  onToggleGuide: () => void;
+  onHome: () => void;
+};
+
+export function Header({
+  query,
+  menuExpanded,
+  onQueryChange,
+  onToggleGuide,
+  onHome,
+}: HeaderProps) {
+  const searchId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!panel) return;
+    function onPointer(event: MouseEvent) {
+      if (!panelRef.current?.contains(event.target as Node)) {
+        setPanel(null);
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setPanel(null);
+    }
+    window.addEventListener("mousedown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [panel]);
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 bg-[#0f0f0f] px-3 sm:gap-4 sm:px-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <button
+          type="button"
+          aria-label="Guide"
+          aria-expanded={menuExpanded}
+          onClick={onToggleGuide}
+          className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+        >
+          <MenuIcon className="h-6 w-6" />
+        </button>
+        <a
+          href="#top"
+          className="flex items-center gap-1.5"
+          aria-label="CinemaTube home"
+          onClick={(event) => {
+            event.preventDefault();
+            onHome();
+          }}
+        >
+          <span className="grid h-[22px] w-8 place-items-center rounded-[5px] bg-[#ff0000]">
+            <svg viewBox="0 0 24 24" className="ml-0.5 h-3.5 w-3.5 fill-white" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+          <span className="text-[20px] font-bold leading-none tracking-[-0.04em]">
+            CinemaTube
+          </span>
+          <span className="hidden whitespace-nowrap text-[11px] font-medium tracking-[0.14em] text-[#aaaaaa] min-[1180px]:inline">
+            MOVIE REVIEWS
+          </span>
+        </a>
+      </div>
+
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:gap-3">
+        <form
+          role="search"
+          className="flex h-10 min-w-0 w-full max-w-[640px]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            inputRef.current?.blur();
+          }}
+        >
+          <label htmlFor={searchId} className="sr-only">
+            Search movies, reviews, and creators
+          </label>
+          <input
+            ref={inputRef}
+            id={searchId}
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search movies, reviews, and creators"
+            className="h-full min-w-0 flex-1 rounded-l-full border border-[#303030] bg-[#121212] px-4 text-[16px] text-[#f1f1f1] outline-none placeholder:text-[#888] focus:border-[#1c62b9]"
+          />
+          <button
+            type="submit"
+            aria-label="Search"
+            className="grid w-12 shrink-0 place-items-center rounded-r-full border border-l-0 border-[#303030] bg-[#222222] hover:bg-[#2e2e2e] sm:w-16"
+          >
+            <SearchIcon className="h-5 w-5" />
+          </button>
+        </form>
+        <button
+          type="button"
+          aria-label="Search with your voice"
+          onClick={() => inputRef.current?.focus()}
+          className="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-[#181818] hover:bg-[#272727] sm:grid"
+        >
+          <MicIcon className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
+        <div className="relative">
+          <button
+            type="button"
+            aria-expanded={panel === "create"}
+            onClick={() => setPanel((current) => (current === "create" ? null : "create"))}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-[#3f3f3f] px-2.5 text-sm font-medium hover:bg-white/10 sm:px-3"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span className="hidden sm:inline">Create</span>
+          </button>
+          {panel === "create" ? (
+            <div className="absolute right-0 top-12 w-64 rounded-xl bg-[#282828] p-3 text-sm shadow-2xl">
+              <p className="font-medium">Create a review</p>
+              <p className="mt-1 text-[#aaaaaa]">
+                Uploads aren’t part of this preview. Browse the feed and save reviews you want to revisit.
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Notifications"
+            aria-expanded={panel === "notifications"}
+            onClick={() =>
+              setPanel((current) => (current === "notifications" ? null : "notifications"))
+            }
+            className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+          >
+            <BellIcon className="h-6 w-6" />
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ff0000]" />
+          </button>
+          {panel === "notifications" ? (
+            <div className="absolute right-0 top-12 w-72 rounded-xl bg-[#282828] p-4 text-sm shadow-2xl">
+              <p className="font-medium">Notifications</p>
+              <p className="mt-2 text-[#aaaaaa]">You’re caught up. No new reviews.</p>
+            </div>
+          ) : null}
+        </div>
+
+        <Image
+          src="/avatars/avatar-you.png"
+          alt="Your channel"
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-full object-cover"
+        />
+      </div>
+    </header>
+  );
+}
