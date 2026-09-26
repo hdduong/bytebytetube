@@ -153,6 +153,7 @@ export const videos: Video[] = [
     align: "right",
     shelf: "fresh",
     newRelease: true,
+    spoilerFree: true,
     topRated: true,
     overlay: [
       [{ text: "SCI-FI", style: "poster" }],
@@ -232,6 +233,24 @@ export const videos: Video[] = [
     overlay: [
       [{ text: "A BRIGHTER", style: "poster" }],
       [{ text: "TOMORROW?", style: "poster", tone: "red" }],
+    ],
+  },
+  {
+    id: "five-scifi",
+    title: "Five sci-fi films you need to see",
+    genre: "Sci-Fi",
+    duration: "14:06",
+    channel: "Nerd Frames",
+    avatar: "/avatars/avatar-nerd.png",
+    views: "198K views",
+    uploaded: "2 weeks ago",
+    thumbnail: "/thumbnails/thumb-five-scifi.png",
+    align: "left",
+    shelf: "popular",
+    spoilerFree: true,
+    overlay: [
+      [{ text: "FIVE", style: "poster" }],
+      [{ text: "TO SEE", style: "poster", tone: "red" }],
     ],
   },
   {

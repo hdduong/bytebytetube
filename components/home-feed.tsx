@@ -6,6 +6,7 @@ import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
+import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
 import {
   chips,
@@ -80,7 +81,13 @@ function toggleId(current: string[], id: string) {
   return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
 }
 
-export function HomeFeed({ videos }: { videos: Video[] }) {
+export function HomeFeed({
+  videos,
+  initialVideoId = null,
+}: {
+  videos: Video[];
+  initialVideoId?: string | null;
+}) {
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState<Chip>("All");
   const [explore, setExplore] = useState<ExploreTopic | null>(null);
@@ -89,11 +96,21 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(
+    initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
+  );
+
+  function openVideo(id: string | null) {
+    setActiveId(id);
+    const path = id ? `/?v=${encodeURIComponent(id)}` : "/";
+    window.history.replaceState(null, "", path);
+  }
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setMobileOpen(false);
+      openVideo(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -103,6 +120,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
   const movies = useMemo(() => videos.filter((video) => !video.topic), [videos]);
   const genre: Genre | null = library === "home" && !explore && isGenre(chip) ? chip : null;
+  const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
   const filtered = useMemo(
     () => movies.filter((video) => matchesChip(video, chip) && matchesQuery(video, query)),
@@ -130,12 +148,14 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
     setLibrary("home");
     setChip("All");
     setExplore(null);
+    openVideo(null);
     setMobileOpen(false);
   }
 
   function openLibrary(view: Exclude<LibraryView, "home">) {
     setLibrary(view);
     setExplore(null);
+    openVideo(null);
     setMobileOpen(false);
   }
 
@@ -143,25 +163,27 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
     setLibrary("home");
     setExplore(null);
     setChip(next);
+    openVideo(null);
     setMobileOpen(false);
   }
 
   function chooseExplore(topic: ExploreTopic) {
     setLibrary("home");
     setExplore(topic);
+    openVideo(null);
     setMobileOpen(false);
   }
 
   function chooseChip(next: Chip) {
     setLibrary("home");
     setChip(next);
-    setExplore(null);
+    openVideo(null);
   }
 
   const heading = headings[chip];
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
-  const showHome = library === "home" && !explore;
+  const showHome = library === "home" && !activeVideo && !explore;
 
   return (
     <div id="top" className="min-h-full bg-[#0f0f0f] text-[#f1f1f1]">
@@ -179,6 +201,8 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
         }}
       />
 
+      {!activeVideo ? (
+        <>
       <Sidebar
         variant="full"
         library={library}
@@ -225,13 +249,30 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
           />
         </>
       ) : null}
+        </>
+      ) : null}
 
       <main
         className={cn(
           "min-h-screen px-4 pb-12 pt-14 sm:px-6",
-          desktopOpen ? "lg:pl-60" : "lg:pl-[72px]",
+          !activeVideo && (desktopOpen ? "lg:pl-60" : "lg:pl-[72px]"),
         )}
       >
+        {activeVideo ? (
+          <div className="pt-4">
+            <WatchView
+              key={activeVideo.id}
+              video={activeVideo}
+              catalog={videos}
+              saved={saved.has(activeVideo.id)}
+              liked={liked.has(activeVideo.id)}
+              onOpen={(video) => openVideo(video.id)}
+              onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
+              onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+            />
+          </div>
+        ) : null}
+
         {showHome ? (
           <>
             <div className="sticky top-14 z-30 -mx-4 bg-[#0f0f0f] px-4 py-3 sm:-mx-6 sm:px-6">
@@ -279,7 +320,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
                     videos={fresh}
                     savedIds={saved}
                     likedIds={liked}
-                    onOpen={() => undefined}
+                    onOpen={(video) => openVideo(video.id)}
                     onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                     onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
                   />
@@ -300,7 +341,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
                       videos={popular}
                       savedIds={saved}
                       likedIds={liked}
-                      onOpen={() => undefined}
+                      onOpen={(video) => openVideo(video.id)}
                       onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                       onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
                     />
@@ -311,7 +352,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
           </>
         ) : null}
 
-        {explore ? (
+        {!activeVideo && explore ? (
           <section className="pt-6">
             <h1 className="text-[28px] font-bold">{explore}</h1>
             <p className="mb-6 mt-1 text-[16px] text-[#aaaaaa]">
@@ -324,7 +365,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
                 videos={exploreFeed}
                 savedIds={saved}
                 likedIds={liked}
-                onOpen={() => undefined}
+                onOpen={(video) => openVideo(video.id)}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                 onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
               />
@@ -332,7 +373,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
           </section>
         ) : null}
 
-        {library === "shorts" ? (
+        {!activeVideo && library === "shorts" ? (
           <section className="pt-6">
             <h1 className="mb-4 text-[28px] font-bold">Shorts</h1>
             <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
@@ -340,7 +381,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
                 <button
                   key={video.id}
                   type="button"
-                  onClick={() => undefined}
+                  onClick={() => openVideo(video.id)}
                   className="w-[180px] shrink-0 text-left"
                 >
                   <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
@@ -361,7 +402,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
           </section>
         ) : null}
 
-        {library === "subscriptions" || library === "watch-later" || library === "liked" ? (
+        {!activeVideo && (library === "subscriptions" || library === "watch-later" || library === "liked") ? (
           <section className="pt-6">
             <h1 className="text-[28px] font-bold">
               {library === "subscriptions"
@@ -390,7 +431,7 @@ export function HomeFeed({ videos }: { videos: Video[] }) {
                 videos={libraryVideos}
                 savedIds={saved}
                 likedIds={liked}
-                onOpen={() => undefined}
+                onOpen={(video) => openVideo(video.id)}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                 onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
               />
