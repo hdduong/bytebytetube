@@ -81,7 +81,7 @@ export function Sidebar({
     <aside
       inert={inert}
       className={cn(
-        "fixed bottom-0 left-0 top-14 z-40 flex-col bg-[#0f0f0f] pb-4",
+        "fixed bottom-0 left-0 top-14 z-40 flex-col bg-canvas pb-4",
         mini ? "w-[72px] px-1" : "w-60 px-3",
         className,
       )}
@@ -104,13 +104,13 @@ export function Sidebar({
                     else onLibrary(item.id);
                   }}
                   className={cn(
-                    "flex w-full items-center text-[14px] text-[#f1f1f1]",
+                    "flex w-full items-center text-[14px] text-ink",
                     mini
                       ? "h-[74px] flex-col justify-center gap-1.5 rounded-xl px-1 text-[10px]"
                       : "h-10 gap-6 rounded-lg px-3",
                     active
-                      ? "bg-[#272727] font-medium"
-                      : "hover:bg-white/[0.08]",
+                      ? "bg-raised font-medium"
+                      : "hover-wash",
                   )}
                 >
                   <Icon filled={active} className="h-6 w-6 shrink-0" />
@@ -123,7 +123,7 @@ export function Sidebar({
 
         <p
           className={cn(
-            "px-3 pb-1 pt-5 text-[15px] font-medium text-[#f1f1f1]",
+            "px-3 pb-1 pt-5 text-[15px] font-medium text-ink",
             mini && "sr-only",
           )}
         >
@@ -140,13 +140,13 @@ export function Sidebar({
                   aria-current={active ? "page" : undefined}
                   onClick={() => onExplore(item.id)}
                   className={cn(
-                    "flex w-full items-center text-[14px] text-[#f1f1f1]",
+                    "flex w-full items-center text-[14px] text-ink",
                     mini
                       ? "h-[74px] flex-col justify-center gap-1.5 rounded-xl px-1 text-[10px]"
                       : "h-10 gap-6 rounded-lg px-3",
                     active
-                      ? "bg-[#272727] font-medium"
-                      : "hover:bg-white/[0.08]",
+                      ? "bg-raised font-medium"
+                      : "hover-wash",
                   )}
                 >
                   <Icon className="h-6 w-6 shrink-0" />
@@ -159,7 +159,7 @@ export function Sidebar({
 
         <p
           className={cn(
-            "px-3 pb-1 pt-5 text-[15px] font-medium text-[#f1f1f1]",
+            "px-3 pb-1 pt-5 text-[15px] font-medium text-ink",
             mini && "sr-only",
           )}
         >
@@ -176,13 +176,13 @@ export function Sidebar({
                   aria-current={active ? "page" : undefined}
                   onClick={() => onGenre(item.id)}
                   className={cn(
-                    "flex w-full items-center text-[14px] text-[#f1f1f1]",
+                    "flex w-full items-center text-[14px] text-ink",
                     mini
                       ? "h-[74px] flex-col justify-center gap-1.5 rounded-xl px-1 text-[10px]"
                       : "h-10 gap-6 rounded-lg px-3",
                     active
-                      ? "bg-[#272727] font-medium"
-                      : "hover:bg-white/[0.08]",
+                      ? "bg-raised font-medium"
+                      : "hover-wash",
                   )}
                 >
                   <Icon className="h-6 w-6 shrink-0" />
@@ -195,7 +195,7 @@ export function Sidebar({
 
       </nav>
       <div className={cn("px-3 pb-6 pt-4", mini && "hidden")}>
-        <p className="text-[15px] leading-snug text-[#f1f1f1]">
+        <p className="text-[15px] leading-snug text-ink">
           <span className="block">Great movies.</span>
           <span className="block">Bigger conversations.</span>
         </p>

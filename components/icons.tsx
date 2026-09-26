@@ -96,7 +96,7 @@ export function ClockIcon({ filled, ...props }: IconProps) {
   return (
     <Base filled={filled} {...props}>
       <circle cx="12" cy="12" r="8" />
-      <path d="M12 8v4.5l3 2" stroke={filled ? "#0f0f0f" : "currentColor"} />
+      <path d="M12 8v4.5l3 2" stroke={filled ? "var(--canvas)" : "currentColor"} />
     </Base>
   );
 }

@@ -186,7 +186,7 @@ export function HomeFeed({
   const showHome = library === "home" && !activeVideo && !explore;
 
   return (
-    <div id="top" className="min-h-full bg-[#0f0f0f] text-[#f1f1f1]">
+    <div id="top" className="min-h-full bg-canvas text-ink">
       <Header
         query={query}
         menuExpanded={desktopOpen || mobileOpen}
@@ -275,7 +275,7 @@ export function HomeFeed({
 
         {showHome ? (
           <>
-            <div className="sticky top-14 z-30 -mx-4 bg-[#0f0f0f] px-4 py-3 sm:-mx-6 sm:px-6">
+            <div className="sticky top-14 z-30 -mx-4 bg-canvas px-4 py-3 sm:-mx-6 sm:px-6">
               <div role="tablist" aria-label="Filter reviews" className="no-scrollbar flex gap-3 overflow-x-auto">
                 {chips.map((item) => {
                   const selected = chip === item;
@@ -289,8 +289,8 @@ export function HomeFeed({
                       className={cn(
                         "h-8 shrink-0 rounded-full px-3 text-[14px] font-medium",
                         selected
-                          ? "bg-white text-black"
-                          : "bg-[#272727] text-white hover:bg-[#3f3f3f]",
+                          ? "bg-chip text-on-chip"
+                          : "bg-raised text-ink hover:bg-raised-hover",
                       )}
                     >
                       {item}
@@ -304,13 +304,13 @@ export function HomeFeed({
               <h1 className="text-[28px] font-bold tracking-[-0.03em]">
                 {query.trim() ? `Results for “${query.trim()}”` : heading.title}
               </h1>
-              <p className="mt-1 text-[16px] text-[#aaaaaa]">
+              <p className="mt-1 text-[16px] text-muted">
                 {query.trim() ? `${filtered.length} reviews` : heading.subtitle}
               </p>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="py-16 text-center text-[#aaaaaa]">
+              <p className="py-16 text-center text-muted">
                 No reviews match that search. Try a genre, a creator, or a title.
               </p>
             ) : (
@@ -331,7 +331,7 @@ export function HomeFeed({
                       <h2 className="text-[20px] font-bold">Popular this week</h2>
                       <a
                         href="#popular"
-                        className="inline-flex items-center gap-1 text-[14px] font-medium text-[#aaaaaa] hover:text-white"
+                        className="inline-flex items-center gap-1 text-[14px] font-medium text-muted hover:text-ink"
                       >
                         See all
                         <ChevronRightIcon className="h-4 w-4" />
@@ -355,11 +355,11 @@ export function HomeFeed({
         {!activeVideo && explore ? (
           <section className="pt-6">
             <h1 className="text-[28px] font-bold">{explore}</h1>
-            <p className="mb-6 mt-1 text-[16px] text-[#aaaaaa]">
+            <p className="mb-6 mt-1 text-[16px] text-muted">
               {query.trim() ? `${exploreFeed.length} videos` : exploreCopy[explore]}
             </p>
             {exploreFeed.length === 0 ? (
-              <p className="py-16 text-[#aaaaaa]">No videos match that search.</p>
+              <p className="py-16 text-muted">No videos match that search.</p>
             ) : (
               <VideoGrid
                 videos={exploreFeed}
@@ -411,7 +411,7 @@ export function HomeFeed({
                   ? "Watch later"
                   : "Liked videos"}
             </h1>
-            <p className="mb-6 mt-1 text-[16px] text-[#aaaaaa]">
+            <p className="mb-6 mt-1 text-[16px] text-muted">
               {library === "subscriptions"
                 ? "New reviews from creators you follow"
                 : library === "watch-later"
@@ -419,7 +419,7 @@ export function HomeFeed({
                   : "Reviews you liked"}
             </p>
             {libraryVideos.length === 0 ? (
-              <p className="py-16 text-[#aaaaaa]">
+              <p className="py-16 text-muted">
                 {library === "watch-later"
                   ? "Nothing saved yet. Hover a review and choose Watch later."
                   : library === "liked"
