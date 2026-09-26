@@ -245,7 +245,7 @@ export function WatchView({
                   <SettingsIcon />
                 </button>
                 {settingsOpen ? (
-                  <div className="absolute bottom-10 right-10 w-36 rounded-lg bg-[#282828] py-1 text-sm shadow-2xl">
+                  <div className="absolute bottom-10 right-10 w-36 rounded-lg border border-line bg-menu py-1 text-sm shadow-2xl">
                     {[1, 1.25, 1.5, 2].map((value) => (
                       <button
                         key={value}
@@ -255,7 +255,7 @@ export function WatchView({
                           setSettingsOpen(false);
                         }}
                         className={cn(
-                          "block w-full px-3 py-1.5 text-left hover:bg-white/10",
+                          "block w-full px-3 py-1.5 text-left hover-wash",
                           speed === value && "text-[#3ea6ff]",
                         )}
                       >
@@ -292,7 +292,7 @@ export function WatchView({
           />
           <div className="min-w-0">
             <p className="text-[16px] font-medium">{video.channel}</p>
-            <p className="text-[12px] text-[#aaaaaa]">{subscriberCount(video.channel)}</p>
+            <p className="text-[12px] text-muted">{subscriberCount(video.channel)}</p>
           </div>
           <button
             type="button"
@@ -306,14 +306,14 @@ export function WatchView({
             className={cn(
               "h-9 rounded-full px-4 text-sm font-medium",
               isSubscribed
-                ? "bg-[#272727] text-white hover:bg-[#3f3f3f]"
-                : "bg-white text-black hover:bg-[#e6e6e6]",
+                ? "bg-raised text-ink hover:bg-raised-hover"
+                : "bg-chip text-on-chip hover:opacity-90",
             )}
           >
             {isSubscribed ? "Subscribed" : "Subscribe"}
           </button>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <div className="flex h-9 items-center overflow-hidden rounded-full bg-[#272727]">
+            <div className="flex h-9 items-center overflow-hidden rounded-full bg-raised">
               <button
                 type="button"
                 aria-pressed={liked}
@@ -321,12 +321,12 @@ export function WatchView({
                   setDisliked(false);
                   onToggleLike(video);
                 }}
-                className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium hover:bg-white/10"
+                className="inline-flex h-9 items-center gap-2 px-3 text-sm font-medium hover-wash"
               >
                 <ThumbUpIcon filled={liked} className="h-5 w-5" />
                 {formatCount(likeTotal)}
               </button>
-              <span className="h-5 w-px bg-white/20" />
+              <span className="h-5 w-px bg-line" />
               <button
                 type="button"
                 aria-pressed={disliked}
@@ -335,7 +335,7 @@ export function WatchView({
                   setDisliked((current) => !current);
                   if (liked) onToggleLike(video);
                 }}
-                className="grid h-9 w-10 place-items-center hover:bg-white/10"
+                className="grid h-9 w-10 place-items-center hover-wash"
               >
                 <ThumbDownIcon filled={disliked} />
               </button>
@@ -343,7 +343,7 @@ export function WatchView({
             <button
               type="button"
               onClick={share}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-[#272727] px-3 text-sm font-medium hover:bg-[#3f3f3f]"
+              className="inline-flex h-9 items-center gap-2 rounded-full bg-raised px-3 text-sm font-medium hover:bg-raised-hover"
             >
               <ShareIcon />
               Share
@@ -352,7 +352,7 @@ export function WatchView({
               type="button"
               aria-pressed={saved}
               onClick={() => onToggleSave(video)}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-[#272727] px-3 text-sm font-medium hover:bg-[#3f3f3f]"
+              className="inline-flex h-9 items-center gap-2 rounded-full bg-raised px-3 text-sm font-medium hover:bg-raised-hover"
             >
               <SaveIcon filled={saved} />
               {saved ? "Saved" : "Save"}
@@ -363,19 +363,19 @@ export function WatchView({
                 aria-label="More actions"
                 aria-expanded={moreOpen}
                 onClick={() => setMoreOpen((current) => !current)}
-                className="grid h-9 w-9 place-items-center rounded-full bg-[#272727] hover:bg-[#3f3f3f]"
+                className="grid h-9 w-9 place-items-center rounded-full bg-raised hover:bg-raised-hover"
               >
                 <MoreIcon className="h-5 w-5" />
               </button>
               {moreOpen ? (
-                <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl bg-[#282828] py-2 text-sm shadow-2xl">
+                <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-line bg-menu py-2 text-sm shadow-2xl">
                   <button
                     type="button"
                     onClick={() => {
                       onToggleSave(video);
                       setMoreOpen(false);
                     }}
-                    className="block w-full px-4 py-2 text-left hover:bg-white/10"
+                    className="block w-full px-4 py-2 text-left hover-wash"
                   >
                     {saved ? "Remove from Watch later" : "Save to Watch later"}
                   </button>
@@ -385,7 +385,7 @@ export function WatchView({
                       share();
                       setMoreOpen(false);
                     }}
-                    className="block w-full px-4 py-2 text-left hover:bg-white/10"
+                    className="block w-full px-4 py-2 text-left hover-wash"
                   >
                     Copy link
                   </button>
@@ -393,13 +393,13 @@ export function WatchView({
               ) : null}
             </div>
           </div>
-          {shareNote ? <p className="w-full text-sm text-[#aaaaaa]">{shareNote}</p> : null}
+          {shareNote ? <p className="w-full text-sm text-muted">{shareNote}</p> : null}
         </div>
 
-        <div className="mt-4 rounded-xl bg-[#272727] px-3 py-3 text-[14px] leading-6">
+        <div className="mt-4 rounded-xl bg-raised px-3 py-3 text-[14px] leading-6">
           <p className="font-medium">
             {video.views}
-            <span className="font-normal text-[#f1f1f1]">
+            <span className="font-normal text-ink">
               {" "}
               <span aria-hidden="true">• </span>
               {video.uploaded}
@@ -452,14 +452,14 @@ export function WatchView({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Add a comment..."
-                className="w-full border-b border-white/20 bg-transparent py-1 text-sm outline-none placeholder:text-[#aaaaaa] focus:border-white"
+                className="w-full border-b border-line bg-transparent py-1 text-sm outline-none placeholder:text-muted focus:border-ink"
               />
               {draft.trim() ? (
                 <div className="mt-2 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setDraft("")}
-                    className="h-9 rounded-full px-3 text-sm font-medium hover:bg-white/10"
+                    className="h-9 rounded-full px-3 text-sm font-medium hover-wash"
                   >
                     Cancel
                   </button>
@@ -486,10 +486,10 @@ export function WatchView({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px]">
                     <span className="font-medium">{comment.handle}</span>{" "}
-                    <span className="text-[#aaaaaa]">{comment.posted}</span>
+                    <span className="text-muted">{comment.posted}</span>
                   </p>
                   <p className="mt-1 text-[14px]">{comment.text}</p>
-                  <div className="mt-1 flex items-center gap-1 text-sm text-[#aaaaaa]">
+                  <div className="mt-1 flex items-center gap-1 text-sm text-muted">
                     <button
                       type="button"
                       aria-label={`Like comment by ${comment.handle}`}
@@ -500,7 +500,7 @@ export function WatchView({
                           ),
                         )
                       }
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 hover:bg-white/10"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 hover-wash"
                     >
                       <ThumbUpIcon className="h-4 w-4" />
                       {comment.likes}
@@ -511,7 +511,7 @@ export function WatchView({
                         setReplyTo(comment.id);
                         setReplyDraft("");
                       }}
-                      className="rounded-full px-2 py-1 font-medium text-white hover:bg-white/10"
+                      className="rounded-full px-2 py-1 font-medium text-ink hover-wash"
                     >
                       Reply
                     </button>
@@ -528,13 +528,13 @@ export function WatchView({
                         value={replyDraft}
                         onChange={(event) => setReplyDraft(event.target.value)}
                         placeholder={`Reply to ${comment.handle}`}
-                        className="w-full border-b border-white/20 bg-transparent py-1 text-sm outline-none focus:border-white"
+                        className="w-full border-b border-line bg-transparent py-1 text-sm outline-none focus:border-ink"
                       />
                       <div className="mt-2 flex justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => setReplyTo(null)}
-                          className="h-8 rounded-full px-3 text-sm hover:bg-white/10"
+                          className="h-8 rounded-full px-3 text-sm hover-wash"
                         >
                           Cancel
                         </button>
@@ -571,7 +571,7 @@ export function WatchView({
               onClick={() => setRecFilter(id)}
               className={cn(
                 "h-8 shrink-0 rounded-lg px-3 text-[14px] font-medium",
-                recFilter === id ? "bg-white text-black" : "bg-[#272727] hover:bg-[#3f3f3f]",
+                recFilter === id ? "bg-chip text-on-chip" : "bg-raised hover:bg-raised-hover",
               )}
             >
               {label}
@@ -601,8 +601,8 @@ export function WatchView({
                   <span className="line-clamp-2 text-[14px] font-medium leading-snug">
                     {item.title}
                   </span>
-                  <span className="mt-1 block text-[12px] text-[#aaaaaa]">{item.channel}</span>
-                  <span className="block text-[12px] text-[#aaaaaa]">
+                  <span className="mt-1 block text-[12px] text-muted">{item.channel}</span>
+                  <span className="block text-[12px] text-muted">
                     {item.views}
                     <span aria-hidden="true"> • </span>
                     {item.uploaded}
@@ -613,7 +613,7 @@ export function WatchView({
           ))}
         </ul>
         {recommendations.length === 0 ? (
-          <p className="py-6 text-sm text-[#aaaaaa]">No recommendations for that filter.</p>
+          <p className="py-6 text-sm text-muted">No recommendations for that filter.</p>
         ) : null}
       </aside>
     </div>

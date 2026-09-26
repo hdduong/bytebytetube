@@ -130,7 +130,7 @@ export function VideoCard({
         <button
           type="button"
           onClick={() => onOpen(video)}
-          className="mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full bg-[#272727]"
+          className="mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full bg-raised"
           aria-label={video.channel}
         >
           <Image
@@ -147,7 +147,7 @@ export function VideoCard({
               <button
                 type="button"
                 onClick={() => onOpen(video)}
-                className="line-clamp-2 text-left text-[16px] font-medium leading-snug text-[#f1f1f1]"
+                className="line-clamp-2 text-left text-[16px] font-medium leading-snug text-ink"
               >
                 {video.title}
               </button>
@@ -155,15 +155,15 @@ export function VideoCard({
             <details className="relative shrink-0">
               <summary
                 aria-label={`More actions for ${video.title}`}
-                className="grid h-8 w-8 cursor-pointer list-none place-items-center rounded-full text-white opacity-0 marker:content-none hover:bg-white/10 group-hover:opacity-100 focus-visible:opacity-100 [&::-webkit-details-marker]:hidden"
+                className="grid h-8 w-8 cursor-pointer list-none place-items-center rounded-full text-ink opacity-0 marker:content-none hover-wash group-hover:opacity-100 focus-visible:opacity-100 [&::-webkit-details-marker]:hidden"
               >
                 <MoreIcon className="h-5 w-5" />
               </summary>
-              <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-xl bg-[#282828] py-2 shadow-2xl">
+              <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-xl border border-line bg-menu py-2 shadow-2xl">
                 <button
                   type="button"
                   onClick={() => onToggleSave(video)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-white/10"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover-wash"
                 >
                   <ClockIcon className="h-5 w-5" />
                   {saved ? "Remove from Watch later" : "Save to Watch later"}
@@ -171,7 +171,7 @@ export function VideoCard({
                 <button
                   type="button"
                   onClick={() => onToggleLike(video)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-white/10"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover-wash"
                 >
                   <ThumbUpIcon filled={liked} className="h-5 w-5" />
                   {liked ? "Remove from Liked videos" : "Add to Liked videos"}
@@ -179,8 +179,8 @@ export function VideoCard({
               </div>
             </details>
           </div>
-          <p className="mt-1 text-[14px] text-[#aaaaaa]">{video.channel}</p>
-          <p className="text-[14px] text-[#aaaaaa]">
+          <p className="mt-1 text-[14px] text-muted">{video.channel}</p>
+          <p className="text-[14px] text-muted">
             {video.views}
             <span aria-hidden="true"> • </span>
             {video.uploaded}
