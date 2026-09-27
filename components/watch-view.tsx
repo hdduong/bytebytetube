@@ -96,7 +96,7 @@ export function WatchView({
   );
 
   async function share() {
-    const url = `${window.location.origin}/?v=${video.id}`;
+    const url = `${window.location.origin}${window.location.pathname}?v=${encodeURIComponent(video.id)}`;
     try {
       await navigator.clipboard.writeText(url);
       setShareNote("Link copied");

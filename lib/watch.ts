@@ -133,17 +133,18 @@ const featuredRecommendationIds = [
 ];
 
 export function recommendedVideos(video: Video, catalog: Video[], filter: "all" | "same" | "channel") {
-  const others = catalog.filter((item) => item.id !== video.id && !item.topic && !item.unlisted);
+  const others = catalog.filter((item) => item.id !== video.id && !item.topic);
   if (filter === "channel") return others.filter((item) => item.channel === video.channel);
+  const listed = others.filter((item) => !item.unlisted);
   if (filter === "same") {
-    return others.filter((item) => (video.topic ? item.topic === video.topic : item.genre === video.genre));
+    return listed.filter((item) => (video.topic ? item.topic === video.topic : item.genre === video.genre));
   }
   if (video.id === "scifi-done-right") {
     return featuredRecommendationIds
-      .map((id) => others.find((item) => item.id === id))
+      .map((id) => listed.find((item) => item.id === id))
       .filter((item): item is Video => Boolean(item));
   }
-  const same = others.filter((item) => item.genre && item.genre === video.genre);
-  const rest = others.filter((item) => item.genre !== video.genre);
+  const same = listed.filter((item) => item.genre && item.genre === video.genre);
+  const rest = listed.filter((item) => item.genre !== video.genre);
   return [...same, ...rest].slice(0, 8);
 }
