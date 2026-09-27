@@ -140,7 +140,10 @@ export function HomeFeed({
 
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
-  const movies = useMemo(() => videos.filter((video) => !video.topic), [videos]);
+  const movies = useMemo(
+    () => videos.filter((video) => !video.topic && !video.unlisted),
+    [videos],
+  );
   const genre: Genre | null = library === "home" && !explore && isGenre(chip) ? chip : null;
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
@@ -152,13 +155,13 @@ export function HomeFeed({
   const exploreFeed = useMemo(
     () =>
       videos.filter(
-        (video) => video.topic === explore && matchesQuery(video, query),
+        (video) => video.topic === explore && !video.unlisted && matchesQuery(video, query),
       ),
     [videos, explore, query],
   );
 
   const libraryVideos = useMemo(() => {
-    const base = videos.filter((video) => matchesQuery(video, query));
+    const base = videos.filter((video) => !video.unlisted && matchesQuery(video, query));
     if (library === "subscriptions") return base.filter((video) => video.subscribed);
     if (library === "watch-later") return base.filter((video) => saved.has(video.id));
     if (library === "liked") return base.filter((video) => liked.has(video.id));

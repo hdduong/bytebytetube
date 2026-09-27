@@ -133,7 +133,7 @@ const featuredRecommendationIds = [
 ];
 
 export function recommendedVideos(video: Video, catalog: Video[], filter: "all" | "same" | "channel") {
-  const others = catalog.filter((item) => item.id !== video.id && !item.topic);
+  const others = catalog.filter((item) => item.id !== video.id && !item.topic && !item.unlisted);
   if (filter === "channel") return others.filter((item) => item.channel === video.channel);
   if (filter === "same") {
     return others.filter((item) => (video.topic ? item.topic === video.topic : item.genre === video.genre));

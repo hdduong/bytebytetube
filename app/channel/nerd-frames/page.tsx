@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HomeFeed } from "@/components/home-feed";
+import { nerdFramesCatalog } from "@/lib/channel";
 import { exploreVideos, videos } from "@/lib/videos";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default async function NerdFramesPage({
   const initialVideoId = typeof params.v === "string" ? params.v : null;
   return (
     <HomeFeed
-      videos={[...videos, ...exploreVideos]}
+      videos={[...videos, ...exploreVideos, ...nerdFramesCatalog()]}
       initialVideoId={initialVideoId}
       initialChannel="nerd-frames"
     />
