@@ -142,7 +142,7 @@ const profiles: Record<
     bio: "Spoiler-free horror, thrillers, and the films that linger.",
     about: "Maya reviews the films that stay with you, and keeps the ending to herself unless the title says otherwise.",
   },
-  filmforge: {
+  "film-forge": {
     handle: "@FilmForge",
     tagline: "Action, tested.",
     bio: "Set pieces, stakes, and whether the movie earns them.",
@@ -154,7 +154,7 @@ const profiles: Record<
     bio: "Quiet films, big performances, and why they still matter.",
     about: "The Movie Desk covers drama and the performances people argue about after the credits.",
   },
-  screentalk: {
+  "screen-talk": {
     handle: "@ScreenTalk",
     tagline: "Horror, talked through.",
     bio: "The scares, the craft, and the ones that get under your skin.",
