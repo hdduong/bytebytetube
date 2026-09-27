@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
+import { channelSlug, getChannel } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
@@ -123,12 +124,14 @@ export function HomeFeed({
   }
 
   function openChannel(name: string) {
-    if (name !== "Nerd Frames") return;
-    if (pathname !== "/channel/nerd-frames") {
-      router.push("/channel/nerd-frames");
+    const slug = channelSlug(name);
+    if (!getChannel(slug, videos)) return;
+    const path = `/channel/${slug}`;
+    if (pathname !== path) {
+      router.push(path);
       return;
     }
-    setChannel("nerd-frames");
+    setChannel(slug);
     setLibrary("home");
     setExplore(null);
     setChip("All");
@@ -240,7 +243,8 @@ export function HomeFeed({
   const heading = headings[chip];
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
-  const showChannel = channel === "nerd-frames" && library === "home" && !activeVideo && !explore;
+  const channelProfile = channel ? getChannel(channel, videos) : null;
+  const showChannel = Boolean(channelProfile) && library === "home" && !activeVideo && !explore;
   const showHome = library === "home" && !activeVideo && !explore && !showChannel;
 
   return (
@@ -348,7 +352,9 @@ export function HomeFeed({
           </div>
         ) : null}
 
-        {showChannel ? <ChannelView query={query} onOpen={openVideo} /> : null}
+        {showChannel && channelProfile ? (
+          <ChannelView profile={channelProfile} query={query} onOpen={openVideo} />
+        ) : null}
 
         {showHome ? (
           <>

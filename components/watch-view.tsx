@@ -285,7 +285,7 @@ export function WatchView({
         <h1 className="mt-3 text-[20px] font-bold leading-snug">{watchTitle(video)}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          {video.channel === "Nerd Frames" && onChannel ? (
+          {onChannel ? (
             <button
               type="button"
               onClick={() => onChannel(video.channel)}
