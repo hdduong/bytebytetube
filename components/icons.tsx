@@ -110,6 +110,25 @@ export function ThumbUpIcon({ filled, ...props }: IconProps) {
   );
 }
 
+export function CommentIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5.5 6.5h13a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9.5L6 19.2V16H5.5A1.5 1.5 0 0 1 4 14.5V8a1.5 1.5 0 0 1 1.5-1.5Z" />
+    </Base>
+  );
+}
+
+export function ShareIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="6" cy="12" r="2" />
+      <circle cx="17" cy="7" r="2" />
+      <circle cx="17" cy="17" r="2" />
+      <path d="M8 11.2 15 8M8 12.8 15 16" />
+    </Base>
+  );
+}
+
 export function SkullIcon(props: IconProps) {
   return (
     <Base {...props}>
