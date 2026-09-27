@@ -461,13 +461,24 @@ export function HomeFeed({
         ) : null}
 
         {showShorts ? (
-          <ShortsFeed
-            videos={libraryVideos}
-            phone={phone}
-            likedIds={liked}
-            onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
-            onChannel={openChannel}
-          />
+          libraryVideos.length === 0 ? (
+            <div
+              className={cn(
+                "grid place-items-center px-6 text-center text-muted",
+                phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
+              )}
+            >
+              <p>No reviews match that search. Try a genre, a creator, or a title.</p>
+            </div>
+          ) : (
+            <ShortsFeed
+              videos={libraryVideos}
+              phone={phone}
+              likedIds={liked}
+              onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+              onChannel={openChannel}
+            />
+          )
         ) : null}
 
         {!activeVideo && (library === "subscriptions" || library === "watch-later" || library === "liked") ? (
