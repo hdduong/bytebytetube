@@ -4,12 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { ChevronRightIcon, SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
-import {
-  channelGenres,
-  nerdFramesVideos,
-  type ChannelGenre,
-  type ChannelVideo,
-} from "@/lib/channel";
+import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 
 type Tab = "Home" | "Videos" | "Shorts" | "Playlists" | "Community" | "About";
 type Sort = "Latest" | "Popular" | "Oldest";
@@ -17,11 +12,6 @@ type Sort = "Latest" | "Popular" | "Oldest";
 const tabs: Tab[] = ["Home", "Videos", "Shorts", "Playlists", "Community", "About"];
 const sorts: Sort[] = ["Latest", "Popular", "Oldest"];
 
-const playlists: Array<{ title: string; count: string; genre: ChannelGenre }> = [
-  { title: "Sci-fi worth the runtime", count: "2 videos", genre: "Sci-Fi" },
-  { title: "Action that earns it", count: "2 videos", genre: "Action" },
-  { title: "Horror that stays", count: "2 videos", genre: "Horror" },
-];
 
 function VerifiedMark() {
   return (
@@ -46,15 +36,23 @@ function matchesSearch(video: ChannelVideo, query: string) {
 }
 
 export function ChannelView({
+  profile,
   query,
   onOpen,
 }: {
+  profile: ChannelProfile;
   query: string;
   onOpen: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Videos");
   const [sort, setSort] = useState<Sort>("Latest");
-  const [genre, setGenre] = useState<(typeof channelGenres)[number]>("All genres");
+  const [genre, setGenre] = useState("All genres");
+  const genres = ["All genres", ...new Set(profile.videos.map((video) => video.genre))];
+  const playlists = [...new Set(profile.videos.map((video) => video.genre))].slice(0, 3).map((item) => ({
+    title: `${item} from ${profile.name}`,
+    count: `${profile.videos.filter((video) => video.genre === item).length} videos`,
+    genre: item,
+  }));
   const [searching, setSearching] = useState(false);
   const [tabQuery, setTabQuery] = useState("");
   const [subscribed, setSubscribed] = useState(false);
@@ -63,7 +61,7 @@ export function ChannelView({
 
   const terms = [query, tabQuery].map((value) => value.trim().toLowerCase()).filter(Boolean);
 
-  const videos = nerdFramesVideos
+  const videos = profile.videos
     .filter(
       (video) =>
         (genre === "All genres" || video.genre === genre) &&
@@ -75,7 +73,7 @@ export function ChannelView({
       return a.recency - b.recency;
     });
 
-  function openPlaylist(next: ChannelGenre) {
+  function openPlaylist(next: string) {
     setGenre(next);
     setTab("Videos");
     setSort("Latest");
@@ -85,7 +83,7 @@ export function ChannelView({
     <div className="flex flex-col gap-3 pt-4">
       <section className="relative h-[180px] overflow-hidden rounded-2xl bg-[#121212]">
         <Image
-          src="/channel/banner.png"
+          src={profile.banner}
           alt=""
           fill
           preload
@@ -94,15 +92,15 @@ export function ChannelView({
         />
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center text-white">
-          <h1 className="font-poster text-[40px] leading-none tracking-wide sm:text-[48px]">NERD FRAMES</h1>
-          <p className="mt-2 text-[14px] font-medium text-white/80">Great movies. Bigger conversations.</p>
+          <h1 className="font-poster text-[40px] leading-none tracking-wide sm:text-[48px]">{profile.bannerTitle}</h1>
+          <p className="mt-2 text-[14px] font-medium text-white/80">{profile.tagline}</p>
         </div>
       </section>
 
       <section className="flex flex-col gap-4 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-4">
           <Image
-            src="/channel/avatar.png"
+            src={profile.avatar}
             alt=""
             width={120}
             height={120}
@@ -111,22 +109,19 @@ export function ChannelView({
           <div className="min-w-0 pt-1">
             <div className="flex items-center gap-2">
               <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] sm:text-[32px]">
-                Nerd Frames
+                {profile.name}
               </h2>
               <VerifiedMark />
             </div>
             <p className="mt-1 text-[14px] text-muted">
-              @NerdFrames
+              {profile.handle}
               <span className="px-1.5 text-[#606060]">•</span>
-              128K subscribers
+              {profile.subscribers}
               <span className="px-1.5 text-[#606060]">•</span>
-              86 videos
+              {profile.videoCount} videos
             </p>
             <p className="mt-2 max-w-[500px] text-[14px] leading-5 text-muted">
-              Honest reviews, deep dives, and a love for great cinema.
-              {aboutOpen
-                ? " New releases, old favorites, and the endings people argue about — spoiler-free unless the title says otherwise."
-                : null}
+              {profile.bio}
             </p>
             <button
               type="button"
@@ -233,7 +228,7 @@ export function ChannelView({
               })}
             </div>
             <div role="tablist" aria-label="Filter by genre" className="no-scrollbar flex gap-2 overflow-x-auto">
-              {channelGenres.map((item) => {
+              {genres.map((item) => {
                 const selected = genre === item;
                 return (
                   <button
@@ -296,7 +291,7 @@ export function ChannelView({
 
       {tab === "Shorts" ? (
         <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
-          {nerdFramesVideos.slice(0, 6).map((video) => (
+          {profile.videos.slice(0, 6).map((video) => (
             <button
               key={video.id}
               type="button"
@@ -317,7 +312,7 @@ export function ChannelView({
       {tab === "Playlists" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {playlists.map((playlist) => {
-            const cover = nerdFramesVideos.find((video) => video.genre === playlist.genre);
+            const cover = profile.videos.find((video) => video.genre === playlist.genre);
             return (
               <button
                 key={playlist.title}
@@ -345,19 +340,19 @@ export function ChannelView({
         <article className="max-w-xl rounded-2xl bg-raised p-4">
           <div className="flex items-center gap-3">
             <Image
-              src="/channel/avatar.png"
+              src={profile.avatar}
               alt=""
               width={40}
               height={40}
               className="h-10 w-10 rounded-full object-cover"
             />
             <div>
-              <p className="text-[14px] font-semibold">Nerd Frames</p>
+              <p className="text-[14px] font-semibold">{profile.name}</p>
               <p className="text-[12px] text-muted">3 days ago</p>
             </div>
           </div>
           <p className="mt-3 text-[14px] leading-5">
-            New review is up: a sci-fi that actually trusts the audience. Tell me what you want covered next.
+            {profile.bio} Tell me what you want covered next.
           </p>
         </article>
       ) : null}
@@ -365,13 +360,12 @@ export function ChannelView({
       {tab === "About" ? (
         <section className="max-w-xl text-[14px] leading-6 text-muted">
           <p>
-            Nerd Frames is a movie-review channel for people who want the conversation, not just a score.
-            Honest reviews, deep dives, and a love for great cinema.
+            {profile.about}
           </p>
           <p className="mt-3">
-            128K subscribers · 86 videos · Joined 2019
+            {profile.subscribers} · {profile.videoCount} videos
           </p>
-          <p className="mt-3">For business inquiries: reviews@nerdframes.example</p>
+          <p className="mt-3">For business inquiries: reviews@{profile.slug}.example</p>
         </section>
       ) : null}
     </div>
