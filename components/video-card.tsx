@@ -207,7 +207,7 @@ export function VideoGrid({
   onToggleLike: (video: Video) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-8 palm:grid-cols-2 desk:grid-cols-4">
       {videos.map((video, index) => (
         <VideoCard
           key={video.id}

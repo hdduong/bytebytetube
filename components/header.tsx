@@ -3,11 +3,14 @@
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import { PhoneToggle } from "@/components/phone-layout";
+import { cn } from "@/lib/cn";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 type HeaderProps = {
   query: string;
   menuExpanded: boolean;
+  phone?: boolean;
   onQueryChange: (value: string) => void;
   onToggleGuide: () => void;
   onHome: () => void;
@@ -16,6 +19,7 @@ type HeaderProps = {
 export function Header({
   query,
   menuExpanded,
+  phone = false,
   onQueryChange,
   onToggleGuide,
   onHome,
@@ -44,8 +48,13 @@ export function Header({
   }, [panel]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 bg-canvas px-3 sm:gap-4 sm:px-4">
-      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+    <header
+      className={cn(
+        "z-50 flex h-14 items-center gap-2 bg-canvas px-3 palm:gap-4 palm:px-4",
+        phone ? "sticky top-0 shrink-0" : "fixed inset-x-0 top-0",
+      )}
+    >
+      <div className="flex shrink-0 items-center gap-1 palm:gap-3">
         <button
           type="button"
           aria-label="Guide"
@@ -72,13 +81,13 @@ export function Header({
           <span className="text-[20px] font-bold leading-none tracking-[-0.04em]">
             CinemaTube
           </span>
-          <span className="hidden whitespace-nowrap text-[11px] font-medium tracking-[0.14em] text-muted min-[1180px]:inline">
+          <span className="hidden whitespace-nowrap text-[11px] font-medium tracking-[0.14em] text-muted wide:inline">
             MOVIE REVIEWS
           </span>
         </a>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 palm:gap-3">
         <form
           role="search"
           className="flex h-10 min-w-0 w-full max-w-[640px]"
@@ -101,7 +110,7 @@ export function Header({
           <button
             type="submit"
             aria-label="Search"
-            className="grid w-12 shrink-0 place-items-center rounded-r-full border border-l-0 border-line bg-field-btn hover:bg-field-btn-hover sm:w-16"
+            className="grid w-12 shrink-0 place-items-center rounded-r-full border border-l-0 border-line bg-field-btn hover:bg-field-btn-hover palm:w-16"
           >
             <SearchIcon className="h-5 w-5" />
           </button>
@@ -110,22 +119,22 @@ export function Header({
           type="button"
           aria-label="Search with your voice"
           onClick={() => inputRef.current?.focus()}
-          className="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-raised hover:bg-raised-hover sm:grid"
+          className="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-raised hover:bg-raised-hover palm:grid"
         >
           <MicIcon className="h-5 w-5" />
         </button>
       </div>
 
-      <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
+      <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-1 palm:gap-2">
         <div className="relative">
           <button
             type="button"
             aria-expanded={panel === "create"}
             onClick={() => setPanel((current) => (current === "create" ? null : "create"))}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line px-2.5 text-sm font-medium hover-wash sm:px-3"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-line px-2.5 text-sm font-medium hover-wash palm:px-3"
           >
             <PlusIcon className="h-5 w-5" />
-            <span className="hidden sm:inline">Create</span>
+            <span className="hidden palm:inline">Create</span>
           </button>
           {panel === "create" ? (
             <div className="absolute right-0 top-12 w-64 rounded-xl border border-line bg-menu p-3 text-sm shadow-2xl">
@@ -137,6 +146,7 @@ export function Header({
           ) : null}
         </div>
 
+        <PhoneToggle />
         <ThemeSwitch />
         <div className="relative">
           <button
