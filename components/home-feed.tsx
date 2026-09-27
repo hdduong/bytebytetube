@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { ChannelView } from "@/components/channel-view";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
@@ -84,14 +86,25 @@ function toggleId(current: string[], id: string) {
 export function HomeFeed({
   videos,
   initialVideoId = null,
+  initialChannel = null,
+  initialChip = "All",
+  initialExplore = null,
+  initialLibrary = "home",
 }: {
   videos: Video[];
   initialVideoId?: string | null;
+  initialChannel?: string | null;
+  initialChip?: Chip;
+  initialExplore?: ExploreTopic | null;
+  initialLibrary?: LibraryView;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [chip, setChip] = useState<Chip>("All");
-  const [explore, setExplore] = useState<ExploreTopic | null>(null);
-  const [library, setLibrary] = useState<LibraryView>("home");
+  const [chip, setChip] = useState<Chip>(initialChip);
+  const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
+  const [channel, setChannel] = useState<string | null>(initialChannel);
+  const [library, setLibrary] = useState<LibraryView>(initialLibrary);
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -102,8 +115,23 @@ export function HomeFeed({
 
   function openVideo(id: string | null) {
     setActiveId(id);
-    const path = id ? `/?v=${encodeURIComponent(id)}` : "/";
+    const base = window.location.pathname;
+    const path = id ? `${base}?v=${encodeURIComponent(id)}` : base;
     window.history.replaceState(null, "", path);
+  }
+
+  function openChannel(name: string) {
+    if (name !== "Nerd Frames") return;
+    if (pathname !== "/channel/nerd-frames") {
+      router.push("/channel/nerd-frames");
+      return;
+    }
+    setChannel("nerd-frames");
+    setLibrary("home");
+    setExplore(null);
+    setChip("All");
+    openVideo(null);
+    setMobileOpen(false);
   }
 
   useEffect(() => {
@@ -118,7 +146,10 @@ export function HomeFeed({
 
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
-  const movies = useMemo(() => videos.filter((video) => !video.topic), [videos]);
+  const movies = useMemo(
+    () => videos.filter((video) => !video.topic && !video.unlisted),
+    [videos],
+  );
   const genre: Genre | null = library === "home" && !explore && isGenre(chip) ? chip : null;
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
@@ -130,13 +161,13 @@ export function HomeFeed({
   const exploreFeed = useMemo(
     () =>
       videos.filter(
-        (video) => video.topic === explore && matchesQuery(video, query),
+        (video) => video.topic === explore && !video.unlisted && matchesQuery(video, query),
       ),
     [videos, explore, query],
   );
 
   const libraryVideos = useMemo(() => {
-    const base = videos.filter((video) => matchesQuery(video, query));
+    const base = videos.filter((video) => !video.unlisted && matchesQuery(video, query));
     if (library === "subscriptions") return base.filter((video) => video.subscribed);
     if (library === "watch-later") return base.filter((video) => saved.has(video.id));
     if (library === "liked") return base.filter((video) => liked.has(video.id));
@@ -148,34 +179,58 @@ export function HomeFeed({
     setLibrary("home");
     setChip("All");
     setExplore(null);
-    openVideo(null);
+    setChannel(null);
     setMobileOpen(false);
+    if (pathname.startsWith("/channel")) {
+      router.push("/");
+      return;
+    }
+    openVideo(null);
   }
 
   function openLibrary(view: Exclude<LibraryView, "home">) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?library=${encodeURIComponent(view)}`);
+      return;
+    }
     setLibrary(view);
     setExplore(null);
+    setChannel(null);
     openVideo(null);
     setMobileOpen(false);
   }
 
   function chooseGenre(next: Genre) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?chip=${encodeURIComponent(next)}`);
+      return;
+    }
     setLibrary("home");
     setExplore(null);
+    setChannel(null);
     setChip(next);
     openVideo(null);
     setMobileOpen(false);
   }
 
   function chooseExplore(topic: ExploreTopic) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?explore=${encodeURIComponent(topic)}`);
+      return;
+    }
     setLibrary("home");
     setExplore(topic);
+    setChannel(null);
     openVideo(null);
     setMobileOpen(false);
   }
 
   function chooseChip(next: Chip) {
     setLibrary("home");
+    setChannel(null);
     setChip(next);
     openVideo(null);
   }
@@ -183,7 +238,8 @@ export function HomeFeed({
   const heading = headings[chip];
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
-  const showHome = library === "home" && !activeVideo && !explore;
+  const showChannel = channel === "nerd-frames" && library === "home" && !activeVideo && !explore;
+  const showHome = library === "home" && !activeVideo && !explore && !showChannel;
 
   return (
     <div id="top" className="min-h-full bg-canvas text-ink">
@@ -267,11 +323,14 @@ export function HomeFeed({
               saved={saved.has(activeVideo.id)}
               liked={liked.has(activeVideo.id)}
               onOpen={(video) => openVideo(video.id)}
+              onChannel={openChannel}
               onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
               onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
             />
           </div>
         ) : null}
+
+        {showChannel ? <ChannelView query={query} onOpen={openVideo} /> : null}
 
         {showHome ? (
           <>
@@ -321,6 +380,7 @@ export function HomeFeed({
                     savedIds={saved}
                     likedIds={liked}
                     onOpen={(video) => openVideo(video.id)}
+                    onChannel={openChannel}
                     onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                     onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
                   />
@@ -342,6 +402,7 @@ export function HomeFeed({
                       savedIds={saved}
                       likedIds={liked}
                       onOpen={(video) => openVideo(video.id)}
+                    onChannel={openChannel}
                       onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                       onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
                     />
@@ -366,6 +427,7 @@ export function HomeFeed({
                 savedIds={saved}
                 likedIds={liked}
                 onOpen={(video) => openVideo(video.id)}
+                    onChannel={openChannel}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                 onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
               />
@@ -432,6 +494,7 @@ export function HomeFeed({
                 savedIds={saved}
                 likedIds={liked}
                 onOpen={(video) => openVideo(video.id)}
+                    onChannel={openChannel}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
                 onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
               />

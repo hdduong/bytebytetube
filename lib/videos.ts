@@ -71,6 +71,7 @@ export type Video = {
   spoilerFree?: boolean;
   topRated?: boolean;
   subscribed?: boolean;
+  unlisted?: boolean;
 };
 
 export function isGenre(value: string): value is Genre {
