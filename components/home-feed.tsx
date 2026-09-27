@@ -87,18 +87,24 @@ export function HomeFeed({
   videos,
   initialVideoId = null,
   initialChannel = null,
+  initialChip = "All",
+  initialExplore = null,
+  initialLibrary = "home",
 }: {
   videos: Video[];
   initialVideoId?: string | null;
   initialChannel?: string | null;
+  initialChip?: Chip;
+  initialExplore?: ExploreTopic | null;
+  initialLibrary?: LibraryView;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [chip, setChip] = useState<Chip>("All");
-  const [explore, setExplore] = useState<ExploreTopic | null>(null);
+  const [chip, setChip] = useState<Chip>(initialChip);
+  const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
-  const [library, setLibrary] = useState<LibraryView>("home");
+  const [library, setLibrary] = useState<LibraryView>(initialLibrary);
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -183,6 +189,11 @@ export function HomeFeed({
   }
 
   function openLibrary(view: Exclude<LibraryView, "home">) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?library=${encodeURIComponent(view)}`);
+      return;
+    }
     setLibrary(view);
     setExplore(null);
     setChannel(null);
@@ -191,6 +202,11 @@ export function HomeFeed({
   }
 
   function chooseGenre(next: Genre) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?chip=${encodeURIComponent(next)}`);
+      return;
+    }
     setLibrary("home");
     setExplore(null);
     setChannel(null);
@@ -200,6 +216,11 @@ export function HomeFeed({
   }
 
   function chooseExplore(topic: ExploreTopic) {
+    if (pathname.startsWith("/channel")) {
+      setMobileOpen(false);
+      router.push(`/?explore=${encodeURIComponent(topic)}`);
+      return;
+    }
     setLibrary("home");
     setExplore(topic);
     setChannel(null);
