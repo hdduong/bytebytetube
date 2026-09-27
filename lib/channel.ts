@@ -182,6 +182,7 @@ const profiles: Record<
 
 export function channelSlug(name: string) {
   return name
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
@@ -247,7 +248,9 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
       videos: nerdFramesVideos,
     };
   }
-  const owned = catalog.filter((video) => !video.unlisted && channelSlug(video.channel) === slug);
+  const owned = catalog.filter(
+    (video) => !video.unlisted && !video.topic && channelSlug(video.channel) === slug,
+  );
   if (owned.length === 0) return null;
   const name = owned[0].channel;
   return {
@@ -262,7 +265,7 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
     about: copy.about,
     subscribers: subscriberCount(name),
     videoCount: owned.length,
-    videos: owned.map(toChannelVideo),
+    videos: owned.map((video, index) => toChannelVideo(video, index)),
   };
 }
 
