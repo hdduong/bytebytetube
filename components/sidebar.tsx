@@ -28,6 +28,7 @@ type SidebarProps = {
   genre: Genre | null;
   explore: ExploreTopic | null;
   className?: string;
+  contained?: boolean;
   inert?: boolean;
   onHome: () => void;
   onLibrary: (view: Exclude<LibraryView, "home">) => void;
@@ -69,6 +70,7 @@ export function Sidebar({
   genre,
   explore,
   className,
+  contained = false,
   inert,
   onHome,
   onLibrary,
@@ -81,7 +83,8 @@ export function Sidebar({
     <aside
       inert={inert}
       className={cn(
-        "fixed bottom-0 left-0 top-14 z-40 flex-col bg-canvas pb-4",
+        contained ? "absolute" : "fixed",
+        "bottom-0 left-0 top-14 z-40 flex-col bg-canvas pb-4",
         mini ? "w-[72px] px-1" : "w-60 px-3",
         className,
       )}
