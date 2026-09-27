@@ -24,6 +24,7 @@ export function Header({
   const searchId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreSearchFocus = useRef(false);
   const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -47,9 +48,15 @@ export function Header({
   }, [panel]);
 
   function closeSearch() {
+    restoreSearchFocus.current = true;
     setSearchOpen(false);
-    searchButtonRef.current?.focus();
   }
+
+  useEffect(() => {
+    if (searchOpen || !restoreSearchFocus.current) return;
+    restoreSearchFocus.current = false;
+    searchButtonRef.current?.focus();
+  }, [searchOpen]);
 
   useEffect(() => {
     if (!searchOpen) return;
