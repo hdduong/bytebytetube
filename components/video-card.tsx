@@ -9,6 +9,7 @@ type VideoCardProps = {
   saved?: boolean;
   liked?: boolean;
   onOpen: (video: Video) => void;
+  onChannel?: (channel: string) => void;
   onToggleSave: (video: Video) => void;
   onToggleLike: (video: Video) => void;
 };
@@ -59,6 +60,7 @@ export function VideoCard({
   saved = false,
   liked = false,
   onOpen,
+  onChannel,
   onToggleSave,
   onToggleLike,
 }: VideoCardProps) {
@@ -179,7 +181,17 @@ export function VideoCard({
               </div>
             </details>
           </div>
-          <p className="mt-1 text-[14px] text-muted">{video.channel}</p>
+          {onChannel && video.channel === "Nerd Frames" ? (
+            <button
+              type="button"
+              onClick={() => onChannel(video.channel)}
+              className="mt-1 text-left text-[14px] text-muted hover:text-ink"
+            >
+              {video.channel}
+            </button>
+          ) : (
+            <p className="mt-1 text-[14px] text-muted">{video.channel}</p>
+          )}
           <p className="text-[14px] text-muted">
             {video.views}
             <span aria-hidden="true"> • </span>
@@ -196,6 +208,7 @@ export function VideoGrid({
   savedIds,
   likedIds,
   onOpen,
+  onChannel,
   onToggleSave,
   onToggleLike,
 }: {
@@ -203,6 +216,7 @@ export function VideoGrid({
   savedIds: Set<string>;
   likedIds: Set<string>;
   onOpen: (video: Video) => void;
+  onChannel?: (channel: string) => void;
   onToggleSave: (video: Video) => void;
   onToggleLike: (video: Video) => void;
 }) {
@@ -216,6 +230,7 @@ export function VideoGrid({
           saved={savedIds.has(video.id)}
           liked={likedIds.has(video.id)}
           onOpen={onOpen}
+          onChannel={onChannel}
           onToggleSave={onToggleSave}
           onToggleLike={onToggleLike}
         />

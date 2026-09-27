@@ -23,6 +23,7 @@ type WatchViewProps = {
   saved: boolean;
   liked: boolean;
   onOpen: (video: Video) => void;
+  onChannel?: (channel: string) => void;
   onToggleSave: (video: Video) => void;
   onToggleLike: (video: Video) => void;
 };
@@ -46,6 +47,7 @@ export function WatchView({
   saved,
   liked,
   onOpen,
+  onChannel,
   onToggleSave,
   onToggleLike,
 }: WatchViewProps) {
@@ -283,17 +285,26 @@ export function WatchView({
         <h1 className="mt-3 text-[20px] font-bold leading-snug">{watchTitle(video)}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Image
-            src={video.avatar}
-            alt=""
-            width={40}
-            height={40}
-            className="h-10 w-10 rounded-full object-cover"
-          />
-          <div className="min-w-0">
-            <p className="text-[16px] font-medium">{video.channel}</p>
-            <p className="text-[12px] text-muted">{subscriberCount(video.channel)}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => onChannel?.(video.channel)}
+            className={cn(
+              "flex min-w-0 items-center gap-3 text-left",
+              video.channel === "Nerd Frames" && "rounded-full hover:bg-raised",
+            )}
+          >
+            <Image
+              src={video.avatar}
+              alt=""
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-full object-cover"
+            />
+            <span className="min-w-0">
+              <span className="block text-[16px] font-medium">{video.channel}</span>
+              <span className="block text-[12px] text-muted">{subscriberCount(video.channel)}</span>
+            </span>
+          </button>
           <button
             type="button"
             aria-pressed={isSubscribed}
