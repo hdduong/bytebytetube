@@ -7,6 +7,7 @@ import { ChannelView } from "@/components/channel-view";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
+import { ShortsFeed } from "@/components/shorts-feed";
 import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
@@ -241,6 +242,7 @@ export function HomeFeed({
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
   const showChannel = channel === "nerd-frames" && library === "home" && !activeVideo && !explore;
+  const showShorts = !activeVideo && library === "shorts";
   const showHome = library === "home" && !activeVideo && !explore && !showChannel;
 
   return (
@@ -327,8 +329,8 @@ export function HomeFeed({
 
       <main
         className={cn(
-          "min-h-0 px-4 pb-12 palm:px-6",
-          phone ? "flex-1 overflow-y-auto" : "min-h-screen pt-14",
+          showShorts ? "overflow-hidden px-0 pb-0" : "min-h-0 px-4 pb-12 palm:px-6",
+          phone ? cn("flex-1", showShorts ? "overflow-hidden" : "overflow-y-auto") : "min-h-screen pt-14",
           !phone && !activeVideo && (desktopOpen ? "desk:pl-60" : "desk:pl-[72px]"),
         )}
       >
@@ -458,33 +460,14 @@ export function HomeFeed({
           </section>
         ) : null}
 
-        {!activeVideo && library === "shorts" ? (
-          <section className="pt-6">
-            <h1 className="mb-4 text-[28px] font-bold">Shorts</h1>
-            <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
-              {libraryVideos.map((video) => (
-                <button
-                  key={video.id}
-                  type="button"
-                  onClick={() => openVideo(video.id)}
-                  className="w-[180px] shrink-0 text-left"
-                >
-                  <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
-                    <Image
-                      src={video.thumbnail}
-                      alt=""
-                      fill
-                      sizes="180px"
-                      className="object-cover"
-                    />
-                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-[14px] font-medium leading-snug">
-                      {video.title}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
+        {showShorts ? (
+          <ShortsFeed
+            videos={libraryVideos}
+            phone={phone}
+            likedIds={liked}
+            onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+            onChannel={openChannel}
+          />
         ) : null}
 
         {!activeVideo && (library === "subscriptions" || library === "watch-later" || library === "liked") ? (
