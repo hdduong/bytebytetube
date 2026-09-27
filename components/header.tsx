@@ -71,7 +71,7 @@ export function Header({
             className="flex h-10 min-w-0 flex-1"
             onSubmit={(event) => {
               event.preventDefault();
-              inputRef.current?.blur();
+              event.currentTarget.querySelector("input")?.blur();
             }}
           >
             <label htmlFor={`${searchId}-mobile`} className="sr-only">
@@ -83,7 +83,7 @@ export function Header({
               autoFocus
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search"
-              className="h-full min-w-0 flex-1 rounded-full border border-line bg-[#121212] px-4 text-[16px] text-ink outline-none placeholder:text-muted"
+              className="h-full min-w-0 flex-1 rounded-full border border-line bg-field px-4 text-[16px] text-ink outline-none placeholder:text-muted"
             />
           </form>
         </div>
