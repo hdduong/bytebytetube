@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+@custom-variant palm {
+  @media (min-width: 640px) {
+    :root:not([data-layout="phone"]) & {
+      @slot;
+    }
+  }
+}
+
+@custom-variant desk {
+  @media (min-width: 1024px) {
+    :root:not([data-layout="phone"]) & {
+      @slot;
+    }
+  }
+}
+
+@custom-variant wide {
+  @media (min-width: 1180px) {
+    :root:not([data-layout="phone"]) & {
+      @slot;
+    }
+  }
+}
+
+@custom-variant stage {
+  @media (min-width: 1280px) {
+    :root:not([data-layout="phone"]) & {
+      @slot;
+    }
+  }
+}
+
 :root,
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -59,6 +91,18 @@ body {
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-roboto), Roboto, Arial, Helvetica, sans-serif;
+}
+
+html[data-layout="phone"] {
+  background: #111111;
+}
+
+html[data-theme="light"][data-layout="phone"] {
+  background: #d4d4d4;
+}
+
+html[data-layout="phone"] body {
+  background: transparent;
 }
 
 .hover-wash:hover {

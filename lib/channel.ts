@@ -189,6 +189,16 @@ export function channelSlug(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function recencyFromUploaded(uploaded: string, fallback: number) {
+  const match = uploaded.match(/(\d+)\s+(day|week|month)/i);
+  if (!match) return fallback;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  if (unit.startsWith("week")) return amount * 7;
+  if (unit.startsWith("month")) return amount * 30;
+  return amount;
+}
+
 function viewCount(views: string) {
   const match = views.match(/([\d.]+)\s*([KM])?/i);
   if (!match) return 0;
@@ -259,13 +269,15 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
     handle: copy.handle,
     avatar: owned[0].avatar,
     banner: owned[0].thumbnail,
-    bannerTitle: name.toUpperCase(),
+    bannerTitle: name.replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase(),
     tagline: copy.tagline,
     bio: copy.bio,
     about: copy.about,
     subscribers: subscriberCount(name),
     videoCount: owned.length,
-    videos: owned.map((video, index) => toChannelVideo(video, index)),
+    videos: owned.map((video, index) =>
+      toChannelVideo(video, recencyFromUploaded(video.uploaded, index)),
+    ),
   };
 }
 

@@ -7,6 +7,7 @@ import { ChannelView } from "@/components/channel-view";
 import { channelSlug, getChannel } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
+import { useLayoutMode } from "@/components/phone-layout";
 import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
@@ -106,6 +107,7 @@ export function HomeFeed({
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
   const [library, setLibrary] = useState<LibraryView>(initialLibrary);
+  const { phone } = useLayoutMode();
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -246,9 +248,17 @@ export function HomeFeed({
   const showHome = library === "home" && !activeVideo && !explore && !showChannel;
 
   return (
-    <div id="top" className="min-h-full bg-canvas text-ink">
+    <div
+      id="top"
+      className={cn(
+        "@container min-h-full bg-canvas text-ink",
+        phone &&
+          "phone-shell relative mx-auto flex h-dvh w-[390px] max-w-full flex-col overflow-hidden border-x border-line shadow-2xl",
+      )}
+    >
       <Header
         query={query}
+        phone={phone}
         menuExpanded={desktopOpen || mobileOpen}
         onQueryChange={setQuery}
         onHome={() => {
@@ -256,8 +266,9 @@ export function HomeFeed({
           goHome();
         }}
         onToggleGuide={() => {
-          if (window.innerWidth >= 1024) setDesktopOpen((open) => !open);
-          else setMobileOpen((open) => !open);
+          const narrow = window.matchMedia("(max-width: 1023px)").matches;
+          if (phone || narrow) setMobileOpen((open) => !open);
+          else setDesktopOpen((open) => !open);
         }}
       />
 
@@ -273,7 +284,8 @@ export function HomeFeed({
         onGenre={chooseGenre}
         onExplore={chooseExplore}
         inert={desktopOpen ? undefined : true}
-        className={desktopOpen ? "hidden lg:flex" : "hidden"}
+        contained={phone}
+        className={desktopOpen ? "hidden desk:flex" : "hidden"}
       />
       <Sidebar
         variant="mini"
@@ -285,7 +297,8 @@ export function HomeFeed({
         onGenre={chooseGenre}
         onExplore={chooseExplore}
         inert={desktopOpen ? true : undefined}
-        className={desktopOpen ? "hidden" : "hidden lg:flex"}
+        contained={phone}
+        className={desktopOpen ? "hidden" : "hidden desk:flex"}
       />
 
       {mobileOpen ? (
@@ -293,7 +306,10 @@ export function HomeFeed({
           <button
             type="button"
             aria-label="Close menu"
-            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+            className={cn(
+              "inset-0 z-30 bg-black/60",
+              phone ? "absolute" : "fixed desk:hidden",
+            )}
             onClick={() => setMobileOpen(false)}
           />
           <Sidebar
@@ -305,7 +321,8 @@ export function HomeFeed({
             onLibrary={openLibrary}
             onGenre={chooseGenre}
             onExplore={chooseExplore}
-            className="z-40 flex lg:hidden"
+            contained={phone}
+            className={cn("z-40 flex", phone ? "" : "desk:hidden")}
           />
         </>
       ) : null}
@@ -314,8 +331,9 @@ export function HomeFeed({
 
       <main
         className={cn(
-          "min-h-screen px-4 pb-12 pt-14 sm:px-6",
-          !activeVideo && (desktopOpen ? "lg:pl-60" : "lg:pl-[72px]"),
+          "min-h-0 px-4 pb-12 palm:px-6",
+          phone ? "flex-1 overflow-y-auto" : "min-h-screen pt-14",
+          !phone && !activeVideo && (desktopOpen ? "desk:pl-60" : "desk:pl-[72px]"),
         )}
       >
         {activeVideo ? (
@@ -340,7 +358,12 @@ export function HomeFeed({
 
         {showHome ? (
           <>
-            <div className="sticky top-14 z-30 -mx-4 bg-canvas px-4 py-3 sm:-mx-6 sm:px-6">
+            <div
+              className={cn(
+                "sticky z-30 -mx-4 bg-canvas px-4 py-3 palm:-mx-6 palm:px-6",
+                phone ? "top-0" : "top-14",
+              )}
+            >
               <div role="tablist" aria-label="Filter reviews" className="no-scrollbar flex gap-3 overflow-x-auto">
                 {chips.map((item) => {
                   const selected = chip === item;

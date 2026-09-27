@@ -92,23 +92,23 @@ export function ChannelView({
         />
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center text-white">
-          <h1 className="font-poster text-[40px] leading-none tracking-wide sm:text-[48px]">{profile.bannerTitle}</h1>
+          <h1 className="font-poster text-[40px] leading-none tracking-wide palm:text-[48px]">{profile.bannerTitle}</h1>
           <p className="mt-2 text-[14px] font-medium text-white/80">{profile.tagline}</p>
         </div>
       </section>
 
-      <section className="flex flex-col gap-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+      <section className="flex flex-col gap-4 py-3 palm:flex-row palm:items-start palm:justify-between">
         <div className="flex min-w-0 gap-4">
           <Image
             src={profile.avatar}
             alt=""
             width={120}
             height={120}
-            className="h-[88px] w-[88px] shrink-0 rounded-full object-cover sm:h-[120px] sm:w-[120px]"
+            className="h-[88px] w-[88px] shrink-0 rounded-full object-cover palm:h-[120px] palm:w-[120px]"
           />
           <div className="min-w-0 pt-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] sm:text-[32px]">
+              <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] palm:text-[32px]">
                 {profile.name}
               </h2>
               <VerifiedMark />
@@ -118,7 +118,7 @@ export function ChannelView({
               <span className="px-1.5 text-[#606060]">•</span>
               {profile.subscribers}
               <span className="px-1.5 text-[#606060]">•</span>
-              {profile.videoCount} videos
+              {profile.videoCount} {profile.videoCount === 1 ? "video" : "videos"}
             </p>
             <p className="mt-2 max-w-[500px] text-[14px] leading-5 text-muted">
               {profile.bio}
@@ -206,7 +206,7 @@ export function ChannelView({
 
       {tab === "Videos" || tab === "Home" ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 palm:flex-row palm:items-center palm:justify-between">
             <div role="tablist" aria-label="Sort videos" className="flex gap-2">
               {sorts.map((item) => {
                 const selected = sort === item;
@@ -252,7 +252,7 @@ export function ChannelView({
           {videos.length === 0 ? (
             <p className="py-16 text-center text-muted">No videos match that filter.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
                 <article key={video.id} className="flex flex-col gap-2">
                   <button type="button" onClick={() => onOpen(video.id)} className="group text-left">
@@ -310,7 +310,7 @@ export function ChannelView({
       ) : null}
 
       {tab === "Playlists" ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 palm:grid-cols-3">
           {playlists.map((playlist) => {
             const cover = profile.videos.find((video) => video.genre === playlist.genre);
             return (
@@ -363,7 +363,7 @@ export function ChannelView({
             {profile.about}
           </p>
           <p className="mt-3">
-            {profile.subscribers} · {profile.videoCount} videos
+            {profile.subscribers} · {profile.videoCount} {profile.videoCount === 1 ? "video" : "videos"}
           </p>
           <p className="mt-3">For business inquiries: reviews@{profile.slug}.example</p>
         </section>
