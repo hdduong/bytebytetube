@@ -150,7 +150,7 @@ export function WatchView({
   }
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_402px]">
+    <div className="grid items-start gap-6 stage:grid-cols-[minmax(0,1fr)_402px]">
       <div>
         <div
           ref={playerRef}
@@ -171,7 +171,7 @@ export function WatchView({
             className="absolute inset-0"
           />
           {video.channel === "Nerd Frames" ? (
-            <div className="pointer-events-none absolute right-3 top-3 w-[30%] max-w-[220px] overflow-hidden rounded-lg shadow-2xl ring-1 ring-white/20 sm:right-4 sm:top-4">
+            <div className="pointer-events-none absolute right-3 top-3 w-[30%] max-w-[220px] overflow-hidden rounded-lg shadow-2xl ring-1 ring-white/20 palm:right-4 palm:top-4">
               <Image
                 src="/avatars/presenter-nerd.png"
                 alt=""
@@ -181,7 +181,7 @@ export function WatchView({
               />
             </div>
           ) : (
-            <div className="pointer-events-none absolute right-3 top-3 h-24 w-36 overflow-hidden rounded-lg bg-[#1a1a1a] shadow-2xl ring-1 ring-white/20 sm:h-28 sm:w-44">
+            <div className="pointer-events-none absolute right-3 top-3 h-24 w-36 overflow-hidden rounded-lg bg-[#1a1a1a] shadow-2xl ring-1 ring-white/20 palm:h-28 palm:w-44">
               <Image src={video.avatar} alt="" fill sizes="176px" className="object-cover" />
             </div>
           )}
