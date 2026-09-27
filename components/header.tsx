@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
-import { BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { cn } from "@/lib/cn";
 
 type HeaderProps = {
   query: string;
@@ -23,6 +24,7 @@ export function Header({
   const searchId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,9 +45,51 @@ export function Header({
     };
   }, [panel]);
 
+  useEffect(() => {
+    if (!searchOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setSearchOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 bg-canvas px-3 sm:gap-4 sm:px-4">
-      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 bg-canvas px-2 sm:gap-4 sm:px-4">
+      {searchOpen ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1 sm:hidden">
+          <button
+            type="button"
+            aria-label="Close search"
+            onClick={() => setSearchOpen(false)}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover-wash"
+          >
+            <ArrowLeftIcon className="h-6 w-6" />
+          </button>
+          <form
+            role="search"
+            className="flex h-10 min-w-0 flex-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              inputRef.current?.blur();
+            }}
+          >
+            <label htmlFor={`${searchId}-mobile`} className="sr-only">
+              Search movies, reviews, and creators
+            </label>
+            <input
+              id={`${searchId}-mobile`}
+              value={query}
+              autoFocus
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search"
+              className="h-full min-w-0 flex-1 rounded-full border border-line bg-[#121212] px-4 text-[16px] text-ink outline-none placeholder:text-muted"
+            />
+          </form>
+        </div>
+      ) : null}
+      <div className={cn("flex min-w-0 flex-1 items-center gap-1 sm:gap-4", searchOpen && "hidden sm:flex")}>
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
         <button
           type="button"
           aria-label="Guide"
@@ -69,7 +113,7 @@ export function Header({
               <path d="M8 5v14l11-7z" />
             </svg>
           </span>
-          <span className="text-[20px] font-bold leading-none tracking-[-0.04em]">
+          <span className="hidden text-[20px] font-bold leading-none tracking-[-0.04em] sm:inline">
             CinemaTube
           </span>
           <span className="hidden whitespace-nowrap text-[11px] font-medium tracking-[0.14em] text-muted min-[1180px]:inline">
@@ -81,7 +125,7 @@ export function Header({
       <div className="flex min-w-0 flex-1 items-center justify-center gap-2 sm:gap-3">
         <form
           role="search"
-          className="flex h-10 min-w-0 w-full max-w-[640px]"
+          className="hidden h-10 min-w-0 w-full max-w-[640px] sm:flex"
           onSubmit={(event) => {
             event.preventDefault();
             inputRef.current?.blur();
@@ -116,13 +160,21 @@ export function Header({
         </button>
       </div>
 
-      <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
+      <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-0 sm:gap-2">
+        <button
+          type="button"
+          aria-label="Search"
+          onClick={() => setSearchOpen(true)}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover-wash sm:hidden"
+        >
+          <SearchIcon className="h-5 w-5" />
+        </button>
         <div className="relative">
           <button
             type="button"
             aria-expanded={panel === "create"}
             onClick={() => setPanel((current) => (current === "create" ? null : "create"))}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line px-2.5 text-sm font-medium hover-wash sm:px-3"
+            className="hidden h-9 items-center gap-1.5 rounded-full border border-line px-2.5 text-sm font-medium hover-wash sm:flex sm:px-3"
           >
             <PlusIcon className="h-5 w-5" />
             <span className="hidden sm:inline">Create</span>
@@ -166,6 +218,7 @@ export function Header({
           height={32}
           className="h-8 w-8 rounded-full object-cover"
         />
+      </div>
       </div>
     </header>
   );
