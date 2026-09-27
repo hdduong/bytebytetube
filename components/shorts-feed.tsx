@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { ThumbUpIcon } from "@/components/icons";
+import { useState } from "react";
+import { CommentIcon, ShareIcon, ThumbUpIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import type { Video } from "@/lib/videos";
 
@@ -18,6 +19,20 @@ export function ShortsFeed({
   onLike: (video: Video) => void;
   onChannel: (channel: string) => void;
 }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function share(videoId: string) {
+    setCopiedId(videoId);
+    window.setTimeout(() => {
+      setCopiedId((current) => (current === videoId ? null : current));
+    }, 2000);
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+    } catch {
+      // The button stays available when the clipboard is blocked.
+    }
+  }
+
   return (
     <section
       aria-label="Shorts"
@@ -64,6 +79,21 @@ export function ShortsFeed({
                 className="grid h-11 w-11 place-items-center rounded-full bg-black/40"
               >
                 <ThumbUpIcon filled={liked} className="h-6 w-6" />
+              </button>
+              <button
+                type="button"
+                aria-label="Comment"
+                className="grid h-11 w-11 place-items-center rounded-full bg-black/40"
+              >
+                <CommentIcon className="h-6 w-6" />
+              </button>
+              <button
+                type="button"
+                aria-label={copiedId === video.id ? "Link copied" : "Share"}
+                onClick={() => void share(video.id)}
+                className="grid h-11 w-11 place-items-center rounded-full bg-black/40"
+              >
+                <ShareIcon className="h-6 w-6" />
               </button>
             </div>
           </article>
