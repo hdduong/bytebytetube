@@ -181,7 +181,7 @@ export function VideoCard({
               </div>
             </details>
           </div>
-          {onChannel && video.channel === "Nerd Frames" ? (
+          {onChannel ? (
             <button
               type="button"
               onClick={() => onChannel(video.channel)}

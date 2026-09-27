@@ -57,17 +57,13 @@ export function ShortsFeed({
             />
             <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
             <div className="absolute bottom-6 left-4 right-16 text-white">
-              {video.channel === "Nerd Frames" ? (
-                <button
-                  type="button"
-                  onClick={() => onChannel(video.channel)}
-                  className="text-[14px] font-semibold"
-                >
-                  {video.channel}
-                </button>
-              ) : (
-                <p className="text-[14px] font-semibold">{video.channel}</p>
-              )}
+              <button
+                type="button"
+                onClick={() => onChannel(video.channel)}
+                className="text-[14px] font-semibold"
+              >
+                {video.channel}
+              </button>
               <p className="mt-1 text-[16px] font-medium leading-snug">{video.title}</p>
             </div>
             <div className="absolute bottom-6 right-3 flex flex-col items-center gap-4 text-white">
