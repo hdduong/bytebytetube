@@ -23,6 +23,7 @@ export function Header({
 }: HeaderProps) {
   const searchId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -45,13 +46,20 @@ export function Header({
     };
   }, [panel]);
 
+  function closeSearch() {
+    setSearchOpen(false);
+    searchButtonRef.current?.focus();
+  }
+
   useEffect(() => {
     if (!searchOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setSearchOpen(false);
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      closeSearch();
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [searchOpen]);
 
   return (
@@ -61,7 +69,7 @@ export function Header({
           <button
             type="button"
             aria-label="Close search"
-            onClick={() => setSearchOpen(false)}
+            onClick={closeSearch}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover-wash"
           >
             <ArrowLeftIcon className="h-6 w-6" />
@@ -164,7 +172,11 @@ export function Header({
         <button
           type="button"
           aria-label="Search"
-          onClick={() => setSearchOpen(true)}
+          ref={searchButtonRef}
+          onClick={() => {
+            setPanel(null);
+            setSearchOpen(true);
+          }}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover-wash sm:hidden"
         >
           <SearchIcon className="h-5 w-5" />
