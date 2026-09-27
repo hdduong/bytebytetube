@@ -142,7 +142,7 @@ export function ChannelView({
             type="button"
             aria-pressed={subscribed}
             onClick={() => setSubscribed((value) => !value)}
-            className="rounded-full bg-chip px-6 py-3 text-[14px] font-bold text-on-chip"
+            className="h-8 rounded-full bg-chip px-4 text-[13px] font-bold text-on-chip palm:h-auto palm:px-6 palm:py-3 palm:text-[14px]"
           >
             {subscribed ? "Subscribed" : "Subscribe"}
           </button>
@@ -151,7 +151,7 @@ export function ChannelView({
             aria-pressed={joined}
             onClick={() => setJoined((value) => !value)}
             className={cn(
-              "rounded-full border px-6 py-3 text-[14px] font-bold",
+              "h-8 rounded-full border px-4 text-[13px] font-bold palm:h-auto palm:px-6 palm:py-3 palm:text-[14px]",
               joined ? "border-ink bg-chip text-on-chip" : "border-line",
             )}
           >
@@ -161,8 +161,8 @@ export function ChannelView({
       </section>
 
       <div className="border-b border-line">
-        <div className="flex items-end gap-6 overflow-x-auto">
-          <div role="tablist" aria-label="Channel sections" className="flex gap-8">
+        <div className="flex items-end gap-4 overflow-x-auto palm:gap-6">
+          <div role="tablist" aria-label="Channel sections" className="flex gap-4 palm:gap-8">
             {tabs.map((item) => {
               const selected = tab === item;
               return (
@@ -173,7 +173,7 @@ export function ChannelView({
                   aria-selected={selected}
                   onClick={() => setTab(item)}
                   className={cn(
-                    "shrink-0 border-b-[3px] pb-3 text-[15px]",
+                    "shrink-0 border-b-[3px] pb-2 text-[13px] palm:pb-3 palm:text-[15px]",
                     selected ? "border-ink font-bold" : "border-transparent font-medium text-muted",
                   )}
                 >
@@ -218,7 +218,7 @@ export function ChannelView({
                     aria-selected={selected}
                     onClick={() => setSort(item)}
                     className={cn(
-                      "rounded-full px-4 py-2 text-[13px]",
+                      "h-7 rounded-full px-3 text-[12px] palm:h-auto palm:px-4 palm:py-2 palm:text-[13px]",
                       selected ? "bg-chip font-semibold text-on-chip" : "bg-raised font-normal text-ink hover:bg-raised-hover",
                     )}
                   >
@@ -238,7 +238,7 @@ export function ChannelView({
                     aria-selected={selected}
                     onClick={() => setGenre(item)}
                     className={cn(
-                      "shrink-0 rounded-full px-4 py-2 text-[13px]",
+                      "h-7 shrink-0 rounded-full px-3 text-[12px] palm:h-auto palm:px-4 palm:py-2 palm:text-[13px]",
                       selected ? "bg-chip font-semibold text-on-chip" : "bg-raised font-normal text-ink hover:bg-raised-hover",
                     )}
                   >
