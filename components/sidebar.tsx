@@ -188,8 +188,12 @@ export function Sidebar({
         <div className="mx-3 my-2 h-px bg-line" />
         <button
           type="button"
+          aria-current={library === "subscriptions" && explore === null ? "page" : undefined}
           onClick={() => onLibrary("subscriptions")}
-          className="flex h-10 w-full items-center justify-between rounded-lg px-3 text-[16px] font-medium hover-wash"
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-lg px-3 text-[16px] font-medium",
+            library === "subscriptions" && explore === null ? "bg-raised" : "hover-wash",
+          )}
         >
           Subscriptions
           <ChevronRightIcon className="h-5 w-5" />
