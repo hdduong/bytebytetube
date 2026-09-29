@@ -10,6 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Pull requests
 
+Before creating a pull request, fetch and start from the latest `main`.
+
 Every pull request needs a GitHub Copilot review. Request it with `gh pr edit <number> --add-reviewer "@copilot"`, wait until the review finishes, and reply to every comment.
 
 If a comment is a real problem, fix it in code, push, reply, and resolve the thread. If it is not a real problem, reply with the reason and leave the code as it is.

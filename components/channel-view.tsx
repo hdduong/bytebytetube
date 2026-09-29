@@ -12,6 +12,34 @@ type Sort = "Latest" | "Popular" | "Oldest";
 const tabs: Tab[] = ["Home", "Videos", "Shorts", "Live", "Podcasts", "Playlists", "Posts"];
 const sorts: Sort[] = ["Latest", "Popular", "Oldest"];
 
+function fillShorts(videos: ChannelVideo[]) {
+  if (videos.length === 0) return [];
+  const count = Math.max(videos.length, 18);
+  return Array.from({ length: count }, (_, index) => {
+    const video = videos[index % videos.length];
+    return { video, key: `${video.id}-short-${index}` };
+  });
+}
+
+function ShortCard({
+  video,
+  onOpen,
+}: {
+  video: ChannelVideo;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <button type="button" onClick={() => onOpen(video.id)} className="text-left">
+      <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
+        <Image src={video.thumbnail} alt="" fill sizes="160px" className="object-cover" />
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-[14px] font-medium leading-snug text-white">
+          {video.title}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function matchesSearch(video: ChannelVideo, query: string) {
   if (!query) return true;
   const haystack = `${video.title} ${video.overlay} ${video.genre}`.toLowerCase();
@@ -90,6 +118,7 @@ export function ChannelView({
       if (sort === "Oldest") return b.recency - a.recency;
       return a.recency - b.recency;
     });
+  const shorts = fillShorts(videos);
 
   function openPlaylist(next: string) {
     setGenre(next);
@@ -200,6 +229,16 @@ export function ChannelView({
               ))}
             </div>
           )}
+          {shorts.length > 0 ? (
+            <div className="mt-8">
+              <h2 className="mb-3 text-[20px] font-bold">Shorts</h2>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
+                {shorts.map(({ video, key }) => (
+                  <ShortCard key={key} video={video} onOpen={onOpen} />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -238,23 +277,15 @@ export function ChannelView({
       ) : null}
 
       {tab === "Shorts" ? (
-        <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
-          {profile.videos.slice(0, 6).map((video) => (
-            <button
-              key={video.id}
-              type="button"
-              onClick={() => onOpen(video.id)}
-              className="w-[180px] shrink-0 text-left"
-            >
-              <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
-                <Image src={video.thumbnail} alt="" fill sizes="180px" className="object-cover" />
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-[14px] font-medium leading-snug text-white">
-                  {video.title}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
+        shorts.length === 0 ? (
+          <p className="py-16 text-muted">No shorts yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
+            {shorts.map(({ video, key }) => (
+              <ShortCard key={key} video={video} onOpen={onOpen} />
+            ))}
+          </div>
+        )
       ) : null}
 
       {tab === "Live" ? <p className="py-16 text-muted">No live videos right now.</p> : null}
