@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -116,6 +116,8 @@ export function Sidebar({
   );
   const [channelsOpen, setChannelsOpen] = useState(false);
   const visibleChannels = channelsOpen ? channels : channels.slice(0, 7);
+  const channelListId = useId();
+  const exploreListId = useId();
 
   if (mini) {
     return (
@@ -179,7 +181,7 @@ export function Sidebar({
             <Row
               icon={ShortsIcon}
               label="Shorts"
-              active={library === "shorts"}
+              active={library === "shorts" && explore === null}
               onClick={() => onLibrary("shorts")}
             />
           </li>
@@ -198,7 +200,7 @@ export function Sidebar({
           Subscriptions
           <ChevronRightIcon className="h-5 w-5" />
         </button>
-        <ul id="followed-channels" className="space-y-0.5">
+        <ul id={channelListId} className="space-y-0.5">
           {visibleChannels.map((channel, index) => (
             <li key={channel.name}>
               <button
@@ -227,7 +229,7 @@ export function Sidebar({
               <button
                 type="button"
                 aria-expanded={channelsOpen}
-                aria-controls="followed-channels"
+                aria-controls={channelListId}
                 onClick={() => setChannelsOpen((open) => !open)}
                 className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
               >
@@ -257,7 +259,7 @@ export function Sidebar({
             <Row
               icon={ClockIcon}
               label="Watch later"
-              active={library === "watch-later"}
+              active={library === "watch-later" && explore === null}
               onClick={() => onLibrary("watch-later")}
             />
           </li>
@@ -265,7 +267,7 @@ export function Sidebar({
             <Row
               icon={ThumbUpIcon}
               label="Liked videos"
-              active={library === "liked"}
+              active={library === "liked" && explore === null}
               onClick={() => onLibrary("liked")}
             />
           </li>
@@ -296,7 +298,7 @@ export function Sidebar({
 
         <div className="mx-3 my-2 h-px bg-line" />
         <p className="px-3 pb-1 pt-3 text-[16px] font-medium">Explore</p>
-        <ul id="explore-topics" className="space-y-0.5">
+        <ul id={exploreListId} className="space-y-0.5">
           <li>
             <Row
               icon={MusicIcon}
@@ -327,7 +329,7 @@ export function Sidebar({
             <button
               type="button"
               aria-expanded={exploreOpen}
-              aria-controls="explore-topics"
+              aria-controls={exploreListId}
               onClick={() => setExploreOpen((open) => !open)}
               className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
             >
