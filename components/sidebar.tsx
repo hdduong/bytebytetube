@@ -194,7 +194,7 @@ export function Sidebar({
           Subscriptions
           <ChevronRightIcon className="h-5 w-5" />
         </button>
-        <ul className="space-y-0.5">
+        <ul id="followed-channels" className="space-y-0.5">
           {visibleChannels.map((channel, index) => (
             <li key={channel.name}>
               <button
@@ -222,6 +222,8 @@ export function Sidebar({
             <li>
               <button
                 type="button"
+                aria-expanded={channelsOpen}
+                aria-controls="followed-channels"
                 onClick={() => setChannelsOpen((open) => !open)}
                 className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
               >
@@ -290,7 +292,7 @@ export function Sidebar({
 
         <div className="mx-3 my-2 h-px bg-line" />
         <p className="px-3 pb-1 pt-3 text-[16px] font-medium">Explore</p>
-        <ul className="space-y-0.5">
+        <ul id="explore-topics" className="space-y-0.5">
           <li>
             <Row
               icon={MusicIcon}
@@ -320,6 +322,8 @@ export function Sidebar({
           <li>
             <button
               type="button"
+              aria-expanded={exploreOpen}
+              aria-controls="explore-topics"
               onClick={() => setExploreOpen((open) => !open)}
               className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
             >
