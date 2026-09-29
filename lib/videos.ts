@@ -38,7 +38,7 @@ export const exploreTopics = [
   "Music",
   "Live",
   "News",
-  "Learning",
+  "Courses",
   "Sports",
   "360° Video",
 ] as const;
@@ -555,7 +555,7 @@ export const exploreVideos: Video[] = [
   {
     id: "learn-the-shot",
     title: "Learn the shot in 10 minutes",
-    topic: "Learning",
+    topic: "Courses",
     duration: "10:02",
     channel: "CineWithMaya",
     avatar: "/avatars/avatar-maya.png",
@@ -572,7 +572,7 @@ export const exploreVideos: Video[] = [
   {
     id: "how-editing-works",
     title: "How editing actually works",
-    topic: "Learning",
+    topic: "Courses",
     duration: "14:20",
     channel: "Nerd Frames",
     avatar: "/avatars/avatar-nerd.png",

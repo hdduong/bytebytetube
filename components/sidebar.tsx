@@ -60,7 +60,7 @@ const moreExplore: { id: ExploreTopic; label: string; icon: typeof MusicIcon }[]
   { id: "Gaming", label: "Gaming", icon: GamingIcon },
   { id: "News", label: "News", icon: NewsIcon },
   { id: "Sports", label: "Sports", icon: SportsIcon },
-  { id: "Learning", label: "Courses", icon: LearningIcon },
+  { id: "Courses", label: "Courses", icon: LearningIcon },
   { id: "360° Video", label: "360° Video", icon: Video360Icon },
 ];
 
@@ -111,8 +111,11 @@ export function Sidebar({
 }: SidebarProps) {
   const mini = variant === "mini";
   const homeActive = library === "home" && explore === null;
-  const [exploreOpen, setExploreOpen] = useState(false);
-  const extraVisible = exploreOpen || moreExplore.some((item) => item.id === explore);
+  const [exploreOpen, setExploreOpen] = useState(() =>
+    moreExplore.some((item) => item.id === explore),
+  );
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const visibleChannels = channelsOpen ? channels : channels.slice(0, 7);
 
   if (mini) {
     return (
@@ -192,7 +195,7 @@ export function Sidebar({
           <ChevronRightIcon className="h-5 w-5" />
         </button>
         <ul className="space-y-0.5">
-          {channels.map((channel, index) => (
+          {visibleChannels.map((channel, index) => (
             <li key={channel.name}>
               <button
                 type="button"
@@ -215,9 +218,18 @@ export function Sidebar({
               </button>
             </li>
           ))}
-          <li>
-            <Row icon={ChevronDownIcon} label="Show more" />
-          </li>
+          {channels.length > 7 ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => setChannelsOpen((open) => !open)}
+                className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
+              >
+                <ChevronDownIcon className={cn("h-6 w-6 shrink-0", channelsOpen && "rotate-180")} />
+                <span>{channelsOpen ? "Show less" : "Show more"}</span>
+              </button>
+            </li>
+          ) : null}
         </ul>
 
         <div className="mx-3 my-2 h-px bg-line" />
@@ -293,7 +305,7 @@ export function Sidebar({
           <li>
             <Row icon={SparkIcon} label="Hype" />
           </li>
-          {extraVisible
+          {exploreOpen
             ? moreExplore.map((item) => (
                 <li key={item.id}>
                   <Row
@@ -311,8 +323,8 @@ export function Sidebar({
               onClick={() => setExploreOpen((open) => !open)}
               className="flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] hover-wash"
             >
-              <ChevronDownIcon className={cn("h-6 w-6 shrink-0", extraVisible && "rotate-180")} />
-              <span>{extraVisible ? "Show less" : "Show more"}</span>
+              <ChevronDownIcon className={cn("h-6 w-6 shrink-0", exploreOpen && "rotate-180")} />
+              <span>{exploreOpen ? "Show less" : "Show more"}</span>
             </button>
           </li>
         </ul>

@@ -77,7 +77,7 @@ const exploreCopy: Record<ExploreTopic, string> = {
   Music: "Songs, sessions, and the tracks stuck in everyone's head",
   Live: "Happening right now",
   News: "What just changed, explained without the noise",
-  Learning: "Lessons you can actually finish",
+  Courses: "Lessons you can actually finish",
   Sports: "The plays, the finishes, and the arguments after",
   "360° Video": "Look around. These play in every direction.",
 };
