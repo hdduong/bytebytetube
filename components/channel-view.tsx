@@ -2,30 +2,32 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { ChevronRightIcon, SearchIcon } from "@/components/icons";
+import { SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 
-type Tab = "Home" | "Videos" | "Shorts" | "Playlists" | "Community" | "About";
+type Tab = "Home" | "Videos" | "Shorts" | "Live" | "Podcasts" | "Playlists" | "Posts";
 type Sort = "Latest" | "Popular" | "Oldest";
 
-const tabs: Tab[] = ["Home", "Videos", "Shorts", "Playlists", "Community", "About"];
+const tabs: Tab[] = ["Home", "Videos", "Shorts", "Live", "Podcasts", "Playlists", "Posts"];
 const sorts: Sort[] = ["Latest", "Popular", "Oldest"];
 
-
-function VerifiedMark() {
+function ShortCard({
+  video,
+  onOpen,
+}: {
+  video: ChannelVideo;
+  onOpen: (id: string) => void;
+}) {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-label="Verified" role="img">
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="m8 12.4 2.6 2.6L16.2 9.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <button type="button" onClick={() => onOpen(video.id)} className="text-left">
+      <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
+        <Image src={video.thumbnail} alt="" fill sizes="160px" className="object-cover" />
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-[14px] font-medium leading-snug text-white">
+          {video.title}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -33,6 +35,50 @@ function matchesSearch(video: ChannelVideo, query: string) {
   if (!query) return true;
   const haystack = `${video.title} ${video.overlay} ${video.genre}`.toLowerCase();
   return haystack.includes(query);
+}
+
+function VideoTile({
+  video,
+  onOpen,
+  className,
+  sizes = "260px",
+}: {
+  video: ChannelVideo;
+  onOpen: (id: string) => void;
+  className?: string;
+  sizes?: string;
+}) {
+  return (
+    <article className={cn("flex flex-col gap-2", className)}>
+      <button
+        type="button"
+        onClick={() => onOpen(video.id)}
+        aria-label={video.title}
+        className="group text-left"
+      >
+        <span className="relative block aspect-video overflow-hidden rounded-xl bg-[#1a1a1a]">
+          <Image
+            src={video.thumbnail}
+            alt=""
+            fill
+            sizes={sizes}
+            className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          />
+          <span className="absolute bottom-2 right-2 rounded bg-black/88 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+            {video.duration}
+          </span>
+        </span>
+      </button>
+      <button type="button" onClick={() => onOpen(video.id)} className="text-left">
+        <span className="block text-[14px] font-semibold leading-[18px]">{video.title}</span>
+        <span className="mt-1 block text-[12px] text-muted">
+          {video.views}
+          <span aria-hidden="true"> • </span>
+          {video.uploaded}
+        </span>
+      </button>
+    </article>
+  );
 }
 
 export function ChannelView({
@@ -44,10 +90,9 @@ export function ChannelView({
   query: string;
   onOpen: (id: string) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("Videos");
+  const [tab, setTab] = useState<Tab>("Home");
   const [sort, setSort] = useState<Sort>("Latest");
   const [genre, setGenre] = useState("All genres");
-  const genres = ["All genres", ...new Set(profile.videos.map((video) => video.genre))];
   const playlists = [...new Set(profile.videos.map((video) => video.genre))].slice(0, 3).map((item) => ({
     title: `${item} from ${profile.name}`,
     count: `${profile.videos.filter((video) => video.genre === item).length} videos`,
@@ -56,22 +101,25 @@ export function ChannelView({
   const [searching, setSearching] = useState(false);
   const [tabQuery, setTabQuery] = useState("");
   const [subscribed, setSubscribed] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const [more, setMore] = useState(false);
 
   const terms = [query, tabQuery].map((value) => value.trim().toLowerCase()).filter(Boolean);
 
-  const videos = profile.videos
-    .filter(
-      (video) =>
-        (genre === "All genres" || video.genre === genre) &&
-        terms.every((term) => matchesSearch(video, term)),
-    )
+  const matched = profile.videos.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const shorts = profile.shorts.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const live = profile.live.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const videos = matched
+    .filter((video) => genre === "All genres" || video.genre === genre)
     .sort((a, b) => {
       if (sort === "Popular") return b.viewCount - a.viewCount;
       if (sort === "Oldest") return b.recency - a.recency;
       return a.recency - b.recency;
     });
+
+  function selectTab(next: Tab) {
+    setGenre("All genres");
+    setTab(next);
+  }
 
   function openPlaylist(next: string) {
     setGenre(next);
@@ -80,8 +128,8 @@ export function ChannelView({
   }
 
   return (
-    <div className="flex flex-col gap-3 pt-4">
-      <section className="relative h-[180px] overflow-hidden rounded-2xl bg-[#121212]">
+    <div className="flex flex-col gap-4 pt-4">
+      <section className="relative h-[140px] overflow-hidden rounded-xl bg-[#121212] palm:h-[180px]">
         <Image
           src={profile.banner}
           alt=""
@@ -90,91 +138,135 @@ export function ChannelView({
           sizes="(min-width: 1180px) 1100px, 100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-black/35" />
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center text-white">
-          <h1 className="font-poster text-[40px] leading-none tracking-wide palm:text-[48px]">{profile.bannerTitle}</h1>
-          <p className="mt-2 text-[14px] font-medium text-white/80">{profile.tagline}</p>
-        </div>
       </section>
 
-      <section className="flex flex-col gap-4 py-3 palm:flex-row palm:items-start palm:justify-between">
-        <div className="flex min-w-0 gap-4">
-          <Image
-            src={profile.avatar}
-            alt=""
-            width={120}
-            height={120}
-            className="h-[88px] w-[88px] shrink-0 rounded-full object-cover palm:h-[120px] palm:w-[120px]"
-          />
-          <div className="min-w-0 pt-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em] palm:text-[32px]">
-                {profile.name}
-              </h2>
-              <VerifiedMark />
-            </div>
-            <p className="mt-1 text-[14px] text-muted">
-              {profile.handle}
-              <span className="px-1.5 text-[#606060]">•</span>
-              {profile.subscribers}
-              <span className="px-1.5 text-[#606060]">•</span>
-              {profile.videoCount} {profile.videoCount === 1 ? "video" : "videos"}
-            </p>
-            <p className="mt-2 max-w-[500px] text-[14px] leading-5 text-muted">
-              {profile.bio}
-            </p>
-            <button
-              type="button"
-              aria-expanded={aboutOpen}
-              onClick={() => {
-                setAboutOpen((open) => !open);
-                if (!aboutOpen) setTab("About");
-              }}
-              className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold hover:underline"
-            >
-              {aboutOpen ? "Show less" : "More about this channel"}
-              <ChevronRightIcon className={cn("h-4 w-4", aboutOpen && "rotate-90")} />
+      <section className="flex items-center gap-4 palm:gap-6">
+        <Image
+          src={profile.avatar}
+          alt=""
+          width={160}
+          height={160}
+          className="h-[88px] w-[88px] shrink-0 rounded-full object-cover palm:h-40 palm:w-40"
+        />
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-bold leading-tight tracking-[-0.02em] palm:text-[36px]">
+            {profile.name}
+          </h1>
+          <p className="mt-1 text-[14px] text-muted">
+            {profile.handle}
+            <span className="px-1.5">•</span>
+            {profile.subscribers}
+            <span className="px-1.5">•</span>
+            {profile.videoCount} {profile.videoCount === 1 ? "video" : "videos"}
+          </p>
+          <p className="mt-1 max-w-xl text-[14px] leading-5">
+            {more ? profile.about : profile.bio}{" "}
+            <button type="button" onClick={() => setMore((open) => !open)} className="font-semibold">
+              {more ? "Show less" : "...more"}
             </button>
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-3">
+          </p>
           <button
             type="button"
             aria-pressed={subscribed}
             onClick={() => setSubscribed((value) => !value)}
-            className="h-8 rounded-full bg-chip px-4 text-[13px] font-bold text-on-chip palm:h-auto palm:px-6 palm:py-3 palm:text-[14px]"
+            className="mt-3 h-9 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip"
           >
             {subscribed ? "Subscribed" : "Subscribe"}
-          </button>
-          <button
-            type="button"
-            aria-pressed={joined}
-            onClick={() => setJoined((value) => !value)}
-            className={cn(
-              "h-8 rounded-full border px-4 text-[13px] font-bold palm:h-auto palm:px-6 palm:py-3 palm:text-[14px]",
-              joined ? "border-ink bg-chip text-on-chip" : "border-line",
-            )}
-          >
-            {joined ? "Joined" : "Join"}
           </button>
         </div>
       </section>
 
-      <div className="border-b border-line">
-        <div className="flex items-end gap-4 overflow-x-auto palm:gap-6">
-          <div role="tablist" aria-label="Channel sections" className="flex gap-4 palm:gap-8">
-            {tabs.map((item) => {
-              const selected = tab === item;
+      <div className="flex items-end justify-between gap-4 border-b border-line">
+        <div role="tablist" aria-label="Channel sections" className="no-scrollbar flex gap-6 overflow-x-auto">
+          {tabs.map((item) => {
+            const selected = tab === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                  onClick={() => selectTab(item)}
+                className={cn(
+                  "shrink-0 border-b-2 pb-3 text-[16px]",
+                  selected ? "border-ink font-medium" : "border-transparent text-muted",
+                )}
+              >
+                {item}
+              </button>
+            );
+          })}
+        </div>
+        {searching ? (
+          <input
+            autoFocus
+            value={tabQuery}
+            onChange={(event) => setTabQuery(event.target.value)}
+            placeholder="Search"
+            aria-label="Search this channel"
+            className="mb-2 h-8 w-40 shrink-0 rounded-full border border-line bg-transparent px-3 text-[14px] outline-none placeholder:text-muted"
+          />
+        ) : (
+          <button
+            type="button"
+            aria-label="Search this channel"
+            onClick={() => setSearching(true)}
+            className="mb-3 shrink-0 text-ink"
+          >
+            <SearchIcon className="h-6 w-6" />
+          </button>
+        )}
+      </div>
+
+      {tab === "Home" ? (
+        <section>
+          <h2 className="mb-3 text-[20px] font-bold">Videos</h2>
+          {videos.length === 0 ? (
+            <p className="py-16 text-muted">No videos match that search.</p>
+          ) : (
+            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+              {videos.map((video) => (
+                <VideoTile key={video.id} video={video} onOpen={onOpen} className="w-[260px] shrink-0" />
+              ))}
+            </div>
+          )}
+          {shorts.length > 0 ? (
+            <div className="mt-8">
+              <h2 className="mb-3 text-[20px] font-bold">Shorts</h2>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
+                {shorts.map((video) => (
+                  <ShortCard key={video.id} video={video} onOpen={onOpen} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {tab === "Videos" ? (
+        <>
+          <div role="tablist" aria-label="Sort videos" className="flex flex-wrap gap-2">
+            {genre !== "All genres" ? (
+              <button
+                type="button"
+                onClick={() => setGenre("All genres")}
+                className="h-8 rounded-lg bg-chip px-3 text-[14px] font-medium text-on-chip"
+              >
+                All videos
+              </button>
+            ) : null}
+            {sorts.map((item) => {
+              const selected = sort === item;
               return (
                 <button
                   key={item}
                   type="button"
                   role="tab"
                   aria-selected={selected}
-                  onClick={() => setTab(item)}
+                  onClick={() => setSort(item)}
                   className={cn(
-                    "shrink-0 border-b-[3px] pb-2 text-[13px] palm:pb-3 palm:text-[15px]",
-                    selected ? "border-ink font-bold" : "border-transparent font-medium text-muted",
+                    "h-8 rounded-lg px-3 text-[14px]",
+                    selected ? "bg-chip font-medium text-on-chip" : "bg-raised text-ink hover:bg-raised-hover",
                   )}
                 >
                   {item}
@@ -182,107 +274,17 @@ export function ChannelView({
               );
             })}
           </div>
-          {searching ? (
-            <input
-              autoFocus
-              value={tabQuery}
-              onChange={(event) => setTabQuery(event.target.value)}
-              placeholder="Search this channel"
-              aria-label="Search this channel"
-              className="mb-2 h-8 w-40 shrink-0 rounded-full border border-line bg-transparent px-3 text-[13px] outline-none placeholder:text-muted"
-            />
-          ) : (
-            <button
-              type="button"
-              aria-label="Search this channel"
-              onClick={() => setSearching(true)}
-              className="mb-3 shrink-0 text-muted hover:text-ink"
-            >
-              <SearchIcon className="h-[18px] w-[18px]" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {tab === "Videos" || tab === "Home" ? (
-        <>
-          <div className="flex flex-col gap-3 palm:flex-row palm:items-center palm:justify-between">
-            <div role="tablist" aria-label="Sort videos" className="flex gap-2">
-              {sorts.map((item) => {
-                const selected = sort === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setSort(item)}
-                    className={cn(
-                      "h-7 rounded-full px-3 text-[12px] palm:h-auto palm:px-4 palm:py-2 palm:text-[13px]",
-                      selected ? "bg-chip font-semibold text-on-chip" : "bg-raised font-normal text-ink hover:bg-raised-hover",
-                    )}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-            <div role="tablist" aria-label="Filter by genre" className="no-scrollbar flex gap-2 overflow-x-auto">
-              {genres.map((item) => {
-                const selected = genre === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setGenre(item)}
-                    className={cn(
-                      "h-7 shrink-0 rounded-full px-3 text-[12px] palm:h-auto palm:px-4 palm:py-2 palm:text-[13px]",
-                      selected ? "bg-chip font-semibold text-on-chip" : "bg-raised font-normal text-ink hover:bg-raised-hover",
-                    )}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {videos.length === 0 ? (
-            <p className="py-16 text-center text-muted">No videos match that filter.</p>
+            <p className="py-16 text-muted">No videos match that search.</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
-                <article key={video.id} className="flex flex-col gap-2">
-                  <button type="button" onClick={() => onOpen(video.id)} className="group text-left">
-                    <span className="relative block aspect-video overflow-hidden rounded-xl bg-[#1a1a1a]">
-                      <Image
-                        src={video.thumbnail}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1180px) 25vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      />
-                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-3">
-                        <span className="block font-poster text-[22px] uppercase leading-none tracking-wide text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.85)]">
-                          {video.overlay}
-                        </span>
-                      </span>
-                      <span className="absolute bottom-2 right-2 rounded bg-black/88 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                        {video.duration}
-                      </span>
-                    </span>
-                  </button>
-                  <button type="button" onClick={() => onOpen(video.id)} className="text-left">
-                    <span className="block text-[14px] font-semibold leading-[18px]">{video.title}</span>
-                    <span className="mt-1 block text-[12px] text-muted">
-                      {video.views}
-                      <span aria-hidden="true"> • </span>
-                      {video.uploaded}
-                    </span>
-                  </button>
-                </article>
+                <VideoTile
+                  key={video.id}
+                  video={video}
+                  onOpen={onOpen}
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                />
               ))}
             </div>
           )}
@@ -290,24 +292,39 @@ export function ChannelView({
       ) : null}
 
       {tab === "Shorts" ? (
-        <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
-          {profile.videos.slice(0, 6).map((video) => (
-            <button
-              key={video.id}
-              type="button"
-              onClick={() => onOpen(video.id)}
-              className="w-[180px] shrink-0 text-left"
-            >
-              <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#1a1a1a]">
-                <Image src={video.thumbnail} alt="" fill sizes="180px" className="object-cover" />
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-[14px] font-semibold leading-snug text-white">
-                  {video.title}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
+        shorts.length === 0 ? (
+          <p className="py-16 text-muted">
+            {profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
+            {shorts.map((video) => (
+              <ShortCard key={video.id} video={video} onOpen={onOpen} />
+            ))}
+          </div>
+        )
       ) : null}
+
+      {tab === "Live" ? (
+        live.length === 0 ? (
+          <p className="py-16 text-muted">
+            {profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
+            {live.map((video) => (
+              <VideoTile
+                key={video.id}
+                video={video}
+                onOpen={onOpen}
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              />
+            ))}
+          </div>
+        )
+      ) : null}
+
+      {tab === "Podcasts" ? <p className="py-16 text-muted">No podcasts yet.</p> : null}
 
       {tab === "Playlists" ? (
         <div className="grid grid-cols-1 gap-4 palm:grid-cols-3">
@@ -336,7 +353,7 @@ export function ChannelView({
         </div>
       ) : null}
 
-      {tab === "Community" ? (
+      {tab === "Posts" ? (
         <article className="max-w-xl rounded-2xl bg-raised p-4">
           <div className="flex items-center gap-3">
             <Image
@@ -351,22 +368,8 @@ export function ChannelView({
               <p className="text-[12px] text-muted">3 days ago</p>
             </div>
           </div>
-          <p className="mt-3 text-[14px] leading-5">
-            {profile.bio} Tell me what you want covered next.
-          </p>
+          <p className="mt-3 text-[14px] leading-5">{profile.bio} Tell me what you want covered next.</p>
         </article>
-      ) : null}
-
-      {tab === "About" ? (
-        <section className="max-w-xl text-[14px] leading-6 text-muted">
-          <p>
-            {profile.about}
-          </p>
-          <p className="mt-3">
-            {profile.subscribers} · {profile.videoCount} {profile.videoCount === 1 ? "video" : "videos"}
-          </p>
-          <p className="mt-3">For business inquiries: reviews@{profile.slug}.example</p>
-        </section>
       ) : null}
     </div>
   );

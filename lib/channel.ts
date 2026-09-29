@@ -1,5 +1,5 @@
 import { subscriberCount } from "@/lib/watch";
-import type { Video } from "@/lib/videos";
+import { isGenre, type Video } from "@/lib/videos";
 
 export type ChannelGenre = "Sci-Fi" | "Action" | "Horror" | "Drama";
 
@@ -209,6 +209,48 @@ function viewCount(views: string) {
   return Math.round(amount);
 }
 
+const shortTitles = [
+  "The shot that stuck",
+  "One line from the trailer",
+  "Wait for the last second",
+  "This cut is the whole movie",
+  "The sound that gives it away",
+  "Why that frame works",
+  "The moment everyone missed",
+  "A look, and then the turn",
+  "The quiet part out loud",
+  "That reaction says it",
+  "The color in this scene",
+  "How the score sneaks in",
+  "The prop you should notice",
+  "Two seconds of the ending",
+  "The face in the background",
+  "Why the camera holds",
+  "The joke that lands late",
+  "The frame before the cut",
+];
+
+function makeShorts(source: ChannelVideo[], slug: string): ChannelVideo[] {
+  if (source.length === 0) return [];
+  return shortTitles.map((title, index) => {
+    const base = source[index % source.length];
+    const seconds = 12 + ((index * 7) % 46);
+    const views = 8 + index * 11;
+    return {
+      id: `${slug}-short-${index + 1}`,
+      overlay: title,
+      title,
+      views: `${views}K views`,
+      viewCount: views * 1000,
+      uploaded: index === 0 ? "1 day ago" : `${index + 1} days ago`,
+      recency: index,
+      duration: `0:${String(seconds).padStart(2, "0")}`,
+      genre: base.genre,
+      thumbnail: base.thumbnail,
+    };
+  });
+}
+
 function toChannelVideo(video: Video, recency: number): ChannelVideo {
   return {
     id: video.id,
@@ -237,6 +279,8 @@ export type ChannelProfile = {
   subscribers: string;
   videoCount: number;
   videos: ChannelVideo[];
+  shorts: ChannelVideo[];
+  live: ChannelVideo[];
 };
 
 export function getChannel(slug: string, catalog: Video[]): ChannelProfile | null {
@@ -256,13 +300,21 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
       subscribers: subscriberCount("Nerd Frames"),
       videoCount: copy.videoCount ?? nerdFramesVideos.length,
       videos: nerdFramesVideos,
+      shorts: makeShorts(nerdFramesVideos, slug),
+      live: [],
     };
   }
   const owned = catalog.filter(
     (video) => !video.unlisted && !video.topic && channelSlug(video.channel) === slug,
   );
+  const live = catalog.filter(
+    (video) => !video.unlisted && video.live && channelSlug(video.channel) === slug,
+  );
   if (owned.length === 0) return null;
   const name = owned[0].channel;
+  const channelVideos = owned.map((video, index) =>
+    toChannelVideo(video, recencyFromUploaded(video.uploaded, index)),
+  );
   return {
     slug,
     name,
@@ -275,10 +327,36 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
     about: copy.about,
     subscribers: subscriberCount(name),
     videoCount: owned.length,
-    videos: owned.map((video, index) =>
-      toChannelVideo(video, recencyFromUploaded(video.uploaded, index)),
-    ),
+    videos: channelVideos,
+    shorts: makeShorts(channelVideos, slug),
+    live: live.map((video, index) => toChannelVideo(video, recencyFromUploaded(video.uploaded, index))),
   };
+}
+
+export function channelShortCatalog(catalog: Video[]): Video[] {
+  const shorts: Video[] = [];
+  for (const slug of Object.keys(profiles)) {
+    const profile = getChannel(slug, catalog);
+    if (!profile) continue;
+    for (const short of profile.shorts) {
+      shorts.push({
+        id: short.id,
+        title: short.title,
+        genre: isGenre(short.genre) ? short.genre : undefined,
+        duration: short.duration,
+        channel: profile.name,
+        avatar: profile.avatar,
+        views: short.views,
+        uploaded: short.uploaded,
+        thumbnail: short.thumbnail,
+        overlay: [[{ text: short.title, style: "poster" }]],
+        align: "center",
+        shelf: "fresh",
+        unlisted: true,
+      });
+    }
+  }
+  return shorts;
 }
 
 export function nerdFramesCatalog(): Video[] {
