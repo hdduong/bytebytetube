@@ -12,15 +12,6 @@ type Sort = "Latest" | "Popular" | "Oldest";
 const tabs: Tab[] = ["Home", "Videos", "Shorts", "Live", "Podcasts", "Playlists", "Posts"];
 const sorts: Sort[] = ["Latest", "Popular", "Oldest"];
 
-function fillShorts(videos: ChannelVideo[]) {
-  if (videos.length === 0) return [];
-  const count = Math.max(videos.length, 18);
-  return Array.from({ length: count }, (_, index) => {
-    const video = videos[index % videos.length];
-    return { video, key: `${video.id}-short-${index}` };
-  });
-}
-
 function ShortCard({
   video,
   onOpen,
@@ -50,10 +41,12 @@ function VideoTile({
   video,
   onOpen,
   className,
+  sizes = "260px",
 }: {
   video: ChannelVideo;
   onOpen: (id: string) => void;
   className?: string;
+  sizes?: string;
 }) {
   return (
     <article className={cn("flex flex-col gap-2", className)}>
@@ -68,7 +61,7 @@ function VideoTile({
             src={video.thumbnail}
             alt=""
             fill
-            sizes="260px"
+            sizes={sizes}
             className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
           />
           <span className="absolute bottom-2 right-2 rounded bg-black/88 px-1.5 py-0.5 text-[11px] font-semibold text-white">
@@ -113,6 +106,7 @@ export function ChannelView({
   const terms = [query, tabQuery].map((value) => value.trim().toLowerCase()).filter(Boolean);
 
   const matched = profile.videos.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const shorts = profile.shorts.filter((video) => terms.every((term) => matchesSearch(video, term)));
   const videos = matched
     .filter((video) => genre === "All genres" || video.genre === genre)
     .sort((a, b) => {
@@ -120,7 +114,6 @@ export function ChannelView({
       if (sort === "Oldest") return b.recency - a.recency;
       return a.recency - b.recency;
     });
-  const shorts = fillShorts(matched);
 
   function selectTab(next: Tab) {
     setGenre("All genres");
@@ -240,8 +233,8 @@ export function ChannelView({
             <div className="mt-8">
               <h2 className="mb-3 text-[20px] font-bold">Shorts</h2>
               <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
-                {shorts.map(({ video, key }) => (
-                  <ShortCard key={key} video={video} onOpen={onOpen} />
+                {shorts.map((video) => (
+                  <ShortCard key={video.id} video={video} onOpen={onOpen} />
                 ))}
               </div>
             </div>
@@ -285,7 +278,12 @@ export function ChannelView({
           ) : (
             <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
-                <VideoTile key={video.id} video={video} onOpen={onOpen} />
+                <VideoTile
+                  key={video.id}
+                  video={video}
+                  onOpen={onOpen}
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                />
               ))}
             </div>
           )}
@@ -297,8 +295,8 @@ export function ChannelView({
           <p className="py-16 text-muted">No shorts yet.</p>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
-            {shorts.map(({ video, key }) => (
-              <ShortCard key={key} video={video} onOpen={onOpen} />
+            {shorts.map((video) => (
+              <ShortCard key={video.id} video={video} onOpen={onOpen} />
             ))}
           </div>
         )

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
-import { getChannel, nerdFramesCatalog } from "@/lib/channel";
+import { channelShortCatalog, getChannel, nerdFramesCatalog } from "@/lib/channel";
 import { exploreVideos, videos } from "@/lib/videos";
 
-const catalog = [...videos, ...exploreVideos, ...nerdFramesCatalog()];
+const baseCatalog = [...videos, ...exploreVideos, ...nerdFramesCatalog()];
+const catalog = [...baseCatalog, ...channelShortCatalog(baseCatalog)];
 
 export async function generateMetadata({
   params,

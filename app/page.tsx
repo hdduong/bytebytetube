@@ -1,4 +1,5 @@
 import { HomeFeed } from "@/components/home-feed";
+import { channelShortCatalog } from "@/lib/channel";
 import {
   chips,
   exploreTopics,
@@ -32,7 +33,7 @@ export default async function Home({
   const library = one(params.library);
   return (
     <HomeFeed
-      videos={[...videos, ...exploreVideos]}
+      videos={[...videos, ...exploreVideos, ...channelShortCatalog([...videos, ...exploreVideos])]}
       initialVideoId={initialVideoId}
       initialChip={(chips as readonly string[]).includes(chip ?? "") ? (chip as Chip) : "All"}
       initialExplore={(exploreTopics as readonly string[]).includes(explore ?? "") ? (explore as ExploreTopic) : null}
