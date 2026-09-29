@@ -77,7 +77,7 @@ export function VideoCard({
               src={video.thumbnail}
               alt=""
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+              sizes="(max-width: 720px) 100vw, (max-width: 1200px) 50vw, 33vw"
               preload={preload}
               className="object-cover transition duration-200 group-hover:brightness-110"
             />
@@ -149,7 +149,7 @@ export function VideoCard({
               <button
                 type="button"
                 onClick={() => onOpen(video)}
-                className="line-clamp-2 text-left text-[16px] font-medium leading-snug text-ink"
+                className="line-clamp-2 text-left text-[14px] font-medium leading-5 text-ink"
               >
                 {video.title}
               </button>
@@ -185,14 +185,14 @@ export function VideoCard({
             <button
               type="button"
               onClick={() => onChannel(video.channel)}
-              className="mt-1 text-left text-[14px] text-muted hover:text-ink"
+              className="mt-1 text-left text-[12px] text-muted hover:text-ink"
             >
               {video.channel}
             </button>
           ) : (
-            <p className="mt-1 text-[14px] text-muted">{video.channel}</p>
+            <p className="mt-1 text-[12px] text-muted">{video.channel}</p>
           )}
-          <p className="text-[14px] text-muted">
+          <p className="text-[12px] text-muted">
             {video.views}
             <span aria-hidden="true"> • </span>
             {video.uploaded}
@@ -221,7 +221,7 @@ export function VideoGrid({
   onToggleLike: (video: Video) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-8 palm:grid-cols-2 desk:grid-cols-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] gap-x-4 gap-y-10">
       {videos.map((video, index) => (
         <VideoCard
           key={video.id}
