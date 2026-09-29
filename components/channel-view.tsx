@@ -107,6 +107,7 @@ export function ChannelView({
 
   const matched = profile.videos.filter((video) => terms.every((term) => matchesSearch(video, term)));
   const shorts = profile.shorts.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const live = profile.live.filter((video) => terms.every((term) => matchesSearch(video, term)));
   const videos = matched
     .filter((video) => genre === "All genres" || video.genre === genre)
     .sort((a, b) => {
@@ -292,7 +293,9 @@ export function ChannelView({
 
       {tab === "Shorts" ? (
         shorts.length === 0 ? (
-          <p className="py-16 text-muted">No shorts yet.</p>
+          <p className="py-16 text-muted">
+            {profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
+          </p>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
             {shorts.map((video) => (
@@ -302,7 +305,24 @@ export function ChannelView({
         )
       ) : null}
 
-      {tab === "Live" ? <p className="py-16 text-muted">No live videos right now.</p> : null}
+      {tab === "Live" ? (
+        live.length === 0 ? (
+          <p className="py-16 text-muted">
+            {profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
+            {live.map((video) => (
+              <VideoTile
+                key={video.id}
+                video={video}
+                onOpen={onOpen}
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              />
+            ))}
+          </div>
+        )
+      ) : null}
 
       {tab === "Podcasts" ? <p className="py-16 text-muted">No podcasts yet.</p> : null}
 

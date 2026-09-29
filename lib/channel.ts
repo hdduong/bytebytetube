@@ -280,6 +280,7 @@ export type ChannelProfile = {
   videoCount: number;
   videos: ChannelVideo[];
   shorts: ChannelVideo[];
+  live: ChannelVideo[];
 };
 
 export function getChannel(slug: string, catalog: Video[]): ChannelProfile | null {
@@ -300,10 +301,14 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
       videoCount: copy.videoCount ?? nerdFramesVideos.length,
       videos: nerdFramesVideos,
       shorts: makeShorts(nerdFramesVideos, slug),
+      live: [],
     };
   }
   const owned = catalog.filter(
     (video) => !video.unlisted && !video.topic && channelSlug(video.channel) === slug,
+  );
+  const live = catalog.filter(
+    (video) => !video.unlisted && video.live && channelSlug(video.channel) === slug,
   );
   if (owned.length === 0) return null;
   const name = owned[0].channel;
@@ -324,6 +329,7 @@ export function getChannel(slug: string, catalog: Video[]): ChannelProfile | nul
     videoCount: owned.length,
     videos: channelVideos,
     shorts: makeShorts(channelVideos, slug),
+    live: live.map((video, index) => toChannelVideo(video, recencyFromUploaded(video.uploaded, index))),
   };
 }
 
