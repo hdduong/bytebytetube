@@ -107,18 +107,20 @@ export function ChannelView({
 
   const terms = [query, tabQuery].map((value) => value.trim().toLowerCase()).filter(Boolean);
 
-  const videos = profile.videos
-    .filter(
-      (video) =>
-        (genre === "All genres" || video.genre === genre) &&
-        terms.every((term) => matchesSearch(video, term)),
-    )
+  const matched = profile.videos.filter((video) => terms.every((term) => matchesSearch(video, term)));
+  const videos = matched
+    .filter((video) => genre === "All genres" || video.genre === genre)
     .sort((a, b) => {
       if (sort === "Popular") return b.viewCount - a.viewCount;
       if (sort === "Oldest") return b.recency - a.recency;
       return a.recency - b.recency;
     });
-  const shorts = fillShorts(videos);
+  const shorts = fillShorts(matched);
+
+  function selectTab(next: Tab) {
+    setGenre("All genres");
+    setTab(next);
+  }
 
   function openPlaylist(next: string) {
     setGenre(next);
@@ -185,7 +187,7 @@ export function ChannelView({
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setTab(item)}
+                  onClick={() => selectTab(item)}
                 className={cn(
                   "shrink-0 border-b-2 pb-3 text-[16px]",
                   selected ? "border-ink font-medium" : "border-transparent text-muted",
@@ -244,7 +246,16 @@ export function ChannelView({
 
       {tab === "Videos" ? (
         <>
-          <div role="tablist" aria-label="Sort videos" className="flex gap-2">
+          <div role="tablist" aria-label="Sort videos" className="flex flex-wrap gap-2">
+            {genre !== "All genres" ? (
+              <button
+                type="button"
+                onClick={() => setGenre("All genres")}
+                className="h-8 rounded-lg bg-chip px-3 text-[14px] font-medium text-on-chip"
+              >
+                All videos
+              </button>
+            ) : null}
             {sorts.map((item) => {
               const selected = sort === item;
               return (
