@@ -197,7 +197,7 @@ export function HomeFeed({
     setExplore(null);
     setChannel(null);
     setMobileOpen(false);
-    if (pathname.startsWith("/channel")) {
+    if (pathname !== "/") {
       router.push("/");
       return;
     }
@@ -205,8 +205,18 @@ export function HomeFeed({
   }
 
   function openLibrary(view: Exclude<LibraryView, "home">) {
-    if (pathname.startsWith("/channel")) {
-      setMobileOpen(false);
+    setMobileOpen(false);
+    if (view === "shorts") {
+      if (pathname !== "/shorts") router.push("/shorts");
+      else {
+        setLibrary("shorts");
+        setExplore(null);
+        setChannel(null);
+        openVideo(null);
+      }
+      return;
+    }
+    if (pathname !== "/") {
       router.push(`/?library=${encodeURIComponent(view)}`);
       return;
     }
@@ -214,11 +224,10 @@ export function HomeFeed({
     setExplore(null);
     setChannel(null);
     openVideo(null);
-    setMobileOpen(false);
   }
 
   function chooseGenre(next: Genre) {
-    if (pathname.startsWith("/channel")) {
+    if (pathname !== "/") {
       setMobileOpen(false);
       router.push(`/?chip=${encodeURIComponent(next)}`);
       return;
@@ -232,7 +241,7 @@ export function HomeFeed({
   }
 
   function chooseExplore(topic: ExploreTopic) {
-    if (pathname.startsWith("/channel")) {
+    if (pathname !== "/") {
       setMobileOpen(false);
       router.push(`/?explore=${encodeURIComponent(topic)}`);
       return;

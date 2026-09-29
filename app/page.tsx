@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
 import {
   chips,
@@ -30,6 +31,7 @@ export default async function Home({
   const chip = one(params.chip);
   const explore = one(params.explore);
   const library = one(params.library);
+  if (library === "shorts") redirect("/shorts");
   return (
     <HomeFeed
       videos={[...videos, ...exploreVideos]}
