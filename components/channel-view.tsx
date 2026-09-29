@@ -57,7 +57,12 @@ function VideoTile({
 }) {
   return (
     <article className={cn("flex flex-col gap-2", className)}>
-      <button type="button" onClick={() => onOpen(video.id)} className="group text-left">
+      <button
+        type="button"
+        onClick={() => onOpen(video.id)}
+        aria-label={video.title}
+        className="group text-left"
+      >
         <span className="relative block aspect-video overflow-hidden rounded-xl bg-[#1a1a1a]">
           <Image
             src={video.thumbnail}
