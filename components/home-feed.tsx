@@ -77,7 +77,7 @@ const exploreCopy: Record<ExploreTopic, string> = {
   Music: "Songs, sessions, and the tracks stuck in everyone's head",
   Live: "Happening right now",
   News: "What just changed, explained without the noise",
-  Learning: "Lessons you can actually finish",
+  Courses: "Lessons you can actually finish",
   Sports: "The plays, the finishes, and the arguments after",
   "360° Video": "Look around. These play in every direction.",
 };
@@ -156,6 +156,16 @@ export function HomeFeed({
     () => videos.filter((video) => !video.topic && !video.unlisted),
     [videos],
   );
+  const channels = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { name: string; avatar: string }[] = [];
+    for (const video of videos) {
+      if (!video.subscribed || video.unlisted || seen.has(video.channel)) continue;
+      seen.add(video.channel);
+      list.push({ name: video.channel, avatar: video.avatar });
+    }
+    return list;
+  }, [videos]);
   const genre: Genre | null = library === "home" && !explore && isGenre(chip) ? chip : null;
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
@@ -279,12 +289,13 @@ export function HomeFeed({
       <Sidebar
         variant="full"
         library={library}
-        genre={genre}
         explore={explore}
+        channels={channels}
         onHome={goHome}
         onLibrary={openLibrary}
-        onGenre={chooseGenre}
         onExplore={chooseExplore}
+        onChannel={openChannel}
+        onYou={() => setDesktopOpen(true)}
         inert={desktopOpen ? undefined : true}
         contained={phone}
         className={desktopOpen ? "hidden desk:flex" : "hidden"}
@@ -292,12 +303,13 @@ export function HomeFeed({
       <Sidebar
         variant="mini"
         library={library}
-        genre={genre}
         explore={explore}
+        channels={channels}
         onHome={goHome}
         onLibrary={openLibrary}
-        onGenre={chooseGenre}
         onExplore={chooseExplore}
+        onChannel={openChannel}
+        onYou={() => setDesktopOpen(true)}
         inert={desktopOpen ? true : undefined}
         contained={phone}
         className={desktopOpen ? "hidden" : "hidden desk:flex"}
@@ -317,12 +329,13 @@ export function HomeFeed({
           <Sidebar
             variant="full"
             library={library}
-            genre={genre}
             explore={explore}
+            channels={channels}
             onHome={goHome}
             onLibrary={openLibrary}
-            onGenre={chooseGenre}
             onExplore={chooseExplore}
+            onChannel={openChannel}
+            onYou={() => setMobileOpen(false)}
             contained={phone}
             className={cn("z-40 flex", phone ? "" : "desk:hidden")}
           />
