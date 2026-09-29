@@ -92,6 +92,14 @@ export function SubscriptionsIcon({ filled, ...props }: IconProps) {
   );
 }
 
+export function HistoryIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 5.2V9h3.8M12 8.5V12l2.6 1.6" />
+    </Base>
+  );
+}
+
 export function ClockIcon({ filled, ...props }: IconProps) {
   return (
     <Base filled={filled} {...props}>
@@ -271,6 +279,58 @@ export function ChevronRightIcon(props: IconProps) {
   return (
     <Base {...props}>
       <path d="m9 6 6 6-6 6" />
+    </Base>
+  );
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Base>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M6.2 18.5c1.1-2.3 3.2-3.4 5.8-3.4s4.7 1.1 5.8 3.4" />
+    </Base>
+  );
+}
+
+export function PlaylistIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 7h10M5 11h10M5 15h6" />
+      <path d="m15 14 4 2.5-4 2.5V14Z" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 4v10M8 10l4 4 4-4M6 18h12" />
+    </Base>
+  );
+}
+
+export function FilmIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3.5" y="6" width="17" height="12" rx="2" />
+      <path d="M8 6 10 4M16 6l-2-2" />
+    </Base>
+  );
+}
+
+export function PlayTileIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="4" y="6" width="16" height="12" rx="2" />
+      <path d="m10 9.5 5 2.5-5 2.5v-5Z" fill="currentColor" stroke="none" />
     </Base>
   );
 }
