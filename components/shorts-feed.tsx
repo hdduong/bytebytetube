@@ -60,7 +60,7 @@ export function ShortsFeed({
                 src={video.thumbnail}
                 alt=""
                 fill
-                sizes="(max-width: 480px) 100vw, 400px"
+                sizes="100vw"
                 className="object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
