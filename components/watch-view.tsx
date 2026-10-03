@@ -6,11 +6,8 @@ import { MoreIcon, ThumbUpIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import type { Video } from "@/lib/videos";
 import {
-  baseLikeCount,
-  commentsFor,
   formatCount,
   recommendedVideos,
-  subscriberCount,
   watchDescription,
   watchDescriptionMore,
   watchTitle,
@@ -20,6 +17,9 @@ import {
 type WatchViewProps = {
   video: Video;
   catalog: Video[];
+  comments: Comment[];
+  subscriberLabel: string;
+  likeCount: number;
   saved: boolean;
   liked: boolean;
   onOpen: (video: Video) => void;
@@ -44,6 +44,9 @@ function formatTime(total: number) {
 export function WatchView({
   video,
   catalog,
+  comments: initialComments,
+  subscriberLabel,
+  likeCount,
   saved,
   liked,
   onOpen,
@@ -52,6 +55,7 @@ export function WatchView({
   onToggleLike,
 }: WatchViewProps) {
   const playerRef = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLVideoElement>(null);
   const commentId = useId();
   const length = parseDuration(video.live ? "0:00" : video.duration);
   const [playing, setPlaying] = useState(false);
@@ -67,10 +71,19 @@ export function WatchView({
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
   const [sort, setSort] = useState<"newest" | "top">("newest");
-  const [comments, setComments] = useState<Comment[]>(() => commentsFor(video));
+  const [comments, setComments] = useState<Comment[]>(initialComments);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState("");
+
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media) return;
+    media.muted = muted;
+    media.playbackRate = speed;
+    if (playing) void media.play();
+    else media.pause();
+  }, [playing, muted, speed, video.src]);
 
   useEffect(() => {
     if (!playing || length === 0) return;
@@ -87,7 +100,7 @@ export function WatchView({
     return () => window.clearInterval(timer);
   }, [playing, length, speed]);
 
-  const likeTotal = baseLikeCount(video) + (liked ? 1 : 0);
+  const likeTotal = likeCount + (liked ? 1 : 0);
   const isSubscribed = Boolean(subscribed[video.channel]);
   const sameLabel = video.topic ?? video.genre ?? "Related";
   const recommendations = recommendedVideos(video, catalog, recFilter);
@@ -156,14 +169,26 @@ export function WatchView({
           ref={playerRef}
           className="relative aspect-video overflow-hidden rounded-xl bg-black"
         >
-          <Image
-            src={video.thumbnail}
-            alt=""
-            fill
-            preload
-            sizes="(max-width: 1280px) 100vw, 68vw"
-            className="object-cover"
-          />
+          {video.src ? (
+            <video
+              key={video.src}
+              ref={mediaRef}
+              src={video.src}
+              poster={video.thumbnail}
+              loop
+              playsInline
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <Image
+              src={video.thumbnail}
+              alt=""
+              fill
+              preload
+              sizes="(max-width: 1280px) 100vw, 68vw"
+              className="object-cover"
+            />
+          )}
           <button
             type="button"
             aria-label={playing ? "Pause" : "Play"}
@@ -300,7 +325,7 @@ export function WatchView({
               />
               <span className="min-w-0">
                 <span className="block text-[16px] font-medium">{video.channel}</span>
-                <span className="block text-[12px] text-muted">{subscriberCount(video.channel)}</span>
+                <span className="block text-[12px] text-muted">{subscriberLabel}</span>
               </span>
             </button>
           ) : (
@@ -314,7 +339,7 @@ export function WatchView({
               />
               <div className="min-w-0">
                 <p className="text-[16px] font-medium">{video.channel}</p>
-                <p className="text-[12px] text-muted">{subscriberCount(video.channel)}</p>
+                <p className="text-[12px] text-muted">{subscriberLabel}</p>
               </div>
             </div>
           )}

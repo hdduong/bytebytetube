@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
-import { channelSlug, getChannel } from "@/lib/channel";
+import { channelSlug, type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
@@ -13,6 +13,7 @@ import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
+import type { Comment } from "@/lib/watch";
 import {
   chips,
   isGenre,
@@ -88,6 +89,10 @@ function toggleId(current: string[], id: string) {
 
 export function HomeFeed({
   videos,
+  profiles,
+  commentsByVideoId,
+  subscribersByChannel,
+  likesByVideoId,
   initialVideoId = null,
   initialChannel = null,
   initialChip = "All",
@@ -95,6 +100,10 @@ export function HomeFeed({
   initialLibrary = "home",
 }: {
   videos: Video[];
+  profiles: ChannelProfile[];
+  commentsByVideoId: Record<string, Comment[]>;
+  subscribersByChannel: Record<string, string>;
+  likesByVideoId: Record<string, number>;
   initialVideoId?: string | null;
   initialChannel?: string | null;
   initialChip?: Chip;
@@ -118,15 +127,23 @@ export function HomeFeed({
   );
 
   function openVideo(id: string | null) {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setActiveId(id);
     const base = window.location.pathname;
     const path = id ? `${base}?v=${encodeURIComponent(id)}` : base;
     window.history.replaceState(null, "", path);
   }
 
+  useLayoutEffect(() => {
+    if (!activeId) return;
+    const main = document.querySelector("main");
+    if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, [activeId]);
+
   function openChannel(name: string) {
     const slug = channelSlug(name);
-    if (!getChannel(slug, videos)) return;
+    if (!profiles.some((profile) => profile.slug === slug)) return;
     const path = `/channel/${slug}`;
     if (pathname !== path) {
       router.push(path);
@@ -187,7 +204,7 @@ export function HomeFeed({
     if (library === "subscriptions") return base.filter((video) => video.subscribed);
     if (library === "watch-later") return base.filter((video) => saved.has(video.id));
     if (library === "liked") return base.filter((video) => liked.has(video.id));
-    if (library === "shorts") return movies.filter((video) => matchesQuery(video, query));
+    if (library === "shorts") return videos.filter((video) => video.source === "short" && matchesQuery(video, query));
     return filtered;
   }, [videos, movies, query, library, saved, liked, filtered]);
 
@@ -263,7 +280,7 @@ export function HomeFeed({
   const heading = headings[chip];
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
-  const channelProfile = channel ? getChannel(channel, videos) : null;
+  const channelProfile = channel ? (profiles.find((profile) => profile.slug === channel) ?? null) : null;
   const showChannel = Boolean(channelProfile) && library === "home" && !activeVideo && !explore;
   const showShorts = !activeVideo && library === "shorts";
   const showHome = library === "home" && !activeVideo && !explore && !showChannel;
@@ -366,6 +383,9 @@ export function HomeFeed({
               key={activeVideo.id}
               video={activeVideo}
               catalog={videos}
+              comments={commentsByVideoId[activeVideo.id] ?? []}
+              subscriberLabel={subscribersByChannel[activeVideo.channel] ?? "48K subscribers"}
+              likeCount={likesByVideoId[activeVideo.id] ?? 0}
               saved={saved.has(activeVideo.id)}
               liked={liked.has(activeVideo.id)}
               onOpen={(video) => openVideo(video.id)}

@@ -1,15 +1,7 @@
 import { redirect } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
-import { channelShortCatalog } from "@/lib/channel";
-import {
-  chips,
-  exploreTopics,
-  exploreVideos,
-  videos,
-  type Chip,
-  type ExploreTopic,
-  type LibraryView,
-} from "@/lib/videos";
+import { channelCatalog, loadLibrary } from "@/lib/library";
+import { chips, exploreTopics, type Chip, type ExploreTopic, type LibraryView } from "@/lib/videos";
 
 const libraries = ["shorts", "subscriptions", "watch-later", "liked"] as const;
 
@@ -33,9 +25,14 @@ export default async function Home({
   const explore = one(params.explore);
   const library = one(params.library);
   if (library === "shorts") redirect("/shorts");
+  const data = await loadLibrary();
   return (
     <HomeFeed
-      videos={[...videos, ...exploreVideos, ...channelShortCatalog([...videos, ...exploreVideos])]}
+      videos={channelCatalog(data)}
+      profiles={data.profiles}
+      commentsByVideoId={data.commentsByVideoId}
+      subscribersByChannel={data.subscribersByChannel}
+      likesByVideoId={data.likesByVideoId}
       initialVideoId={initialVideoId}
       initialChip={(chips as readonly string[]).includes(chip ?? "") ? (chip as Chip) : "All"}
       initialExplore={(exploreTopics as readonly string[]).includes(explore ?? "") ? (explore as ExploreTopic) : null}

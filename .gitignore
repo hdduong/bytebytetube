@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# generated preview clips
+/public/videos/
+scripts/.fal-progress.json
+
 # production
 /build
 
