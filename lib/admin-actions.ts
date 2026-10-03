@@ -1,0 +1,350 @@
+"use server";
+
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { channels, comments, users, videos } from "@/drizzle/schema";
+import { db } from "@/lib/db";
+import type { OverlayPart } from "@/lib/videos";
+
+const sources = ["feed", "explore", "channel", "short"] as const;
+const aligns = ["left", "center", "right"] as const;
+const shelves = ["fresh", "popular"] as const;
+
+function text(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "").trim();
+}
+
+function flag(formData: FormData, name: string) {
+  return formData.get(name) === "on";
+}
+
+function wholeNumber(formData: FormData, name: string) {
+  const raw = text(formData, name);
+  if (!raw) return 0;
+  const value = Number(raw);
+  if (!Number.isInteger(value)) {
+    throw new Error(`${name} must be a whole number.`);
+  }
+  return value;
+}
+
+function postgresCode(error: unknown) {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current && typeof current === "object"; depth += 1) {
+    if ("code" in current && typeof current.code === "string") return current.code;
+    current = "cause" in current ? current.cause : undefined;
+  }
+  return undefined;
+}
+
+function dbMessage(error: unknown) {
+  const code = postgresCode(error);
+  if (code === "23505") return "A record with that slug or handle already exists.";
+  if (code === "23503") return "Another record still uses this one. Delete or reassign those first.";
+  if (code === "22P02") return "That id is not a valid UID.";
+  if (error instanceof Error && error.message && !error.message.startsWith("Failed query")) return error.message;
+  return "Could not save that record.";
+}
+
+function bail(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function refresh() {
+  revalidatePath("/", "layout");
+}
+
+function parseOverlay(raw: string): OverlayPart[][] {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value)) throw new Error("Overlay must be a JSON array.");
+    return value as OverlayPart[][];
+  } catch (error) {
+    if (error instanceof Error && error.message === "Overlay must be a JSON array.") throw error;
+    throw new Error("Overlay must be valid JSON.");
+  }
+}
+
+export async function createUser(formData: FormData) {
+  const name = text(formData, "name");
+  const handle = text(formData, "handle");
+  const avatar = text(formData, "avatar");
+  if (!name || !handle || !avatar) bail("/admin/users", "Name, handle, and avatar are required.");
+  let id = "";
+  try {
+    const [created] = await db.insert(users).values({ name, handle, avatar }).returning({ id: users.id });
+    id = created?.id ?? "";
+  } catch (error) {
+    bail("/admin/users", dbMessage(error));
+  }
+  if (!id) bail("/admin/users", "Could not save that record.");
+  refresh();
+  redirect(`/admin/users/${id}?saved=1`);
+}
+
+export async function updateUser(formData: FormData) {
+  const id = text(formData, "id");
+  const name = text(formData, "name");
+  const handle = text(formData, "handle");
+  const avatar = text(formData, "avatar");
+  const back = `/admin/users/${encodeURIComponent(id)}`;
+  if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");
+  try {
+    await db.update(users).set({ name, handle, avatar }).where(eq(users.id, id));
+  } catch (error) {
+    bail(back, dbMessage(error));
+  }
+  refresh();
+  redirect(`${back}?saved=1`);
+}
+
+export async function deleteUser(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) bail("/admin/users", "Missing user id.");
+  try {
+    const removed = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
+    if (removed.length === 0) bail("/admin/users", "User was not found.");
+  } catch (error) {
+    bail("/admin/users", dbMessage(error));
+  }
+  refresh();
+  redirect("/admin/users");
+}
+
+export async function createChannel(formData: FormData) {
+  const values = channelValues(formData, "/admin/channels");
+  if (!values) bail("/admin/channels", "Slug, name, handle, owner, and the text fields are required.");
+  const { id: _id, ...insertValues } = values;
+  let id = "";
+  try {
+    const [created] = await db.insert(channels).values(insertValues).returning({ id: channels.id });
+    id = created?.id ?? "";
+  } catch (error) {
+    bail("/admin/channels", dbMessage(error));
+  }
+  if (!id) bail("/admin/channels", "Could not save that record.");
+  refresh();
+  redirect(`/admin/channels/${id}?saved=1`);
+}
+
+export async function updateChannel(formData: FormData) {
+  const id = text(formData, "id");
+  const back = `/admin/channels/${id}`;
+  const values = channelValues(formData, back);
+  if (!values || !id) bail(back || "/admin/channels", "Name, handle, owner, and the text fields are required.");
+  try {
+    const { id: channelId, ...rest } = values;
+    await db.update(channels).set(rest).where(eq(channels.id, channelId));
+  } catch (error) {
+    bail(back, dbMessage(error));
+  }
+  refresh();
+  redirect(`${back}?saved=1`);
+}
+
+export async function deleteChannel(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) bail("/admin/channels", "Missing channel id.");
+  try {
+    const removed = await db.delete(channels).where(eq(channels.id, id)).returning({ id: channels.id });
+    if (removed.length === 0) bail("/admin/channels", "Channel was not found.");
+  } catch (error) {
+    bail("/admin/channels", dbMessage(error));
+  }
+  refresh();
+  redirect("/admin/channels");
+}
+
+function channelValues(formData: FormData, back: string) {
+  const id = text(formData, "id");
+  const slug = text(formData, "slug");
+  const name = text(formData, "name");
+  const handle = text(formData, "handle");
+  const avatar = text(formData, "avatar");
+  const banner = text(formData, "banner");
+  const bannerTitle = text(formData, "bannerTitle");
+  const tagline = text(formData, "tagline");
+  const bio = text(formData, "bio");
+  const about = text(formData, "about");
+  const subscribers = text(formData, "subscribers");
+  const ownerId = text(formData, "ownerId");
+  let videoCount = 0;
+  try {
+    videoCount = wholeNumber(formData, "videoCount");
+  } catch (error) {
+    bail(back, error instanceof Error ? error.message : "Video count must be a whole number.");
+  }
+  if (!slug || !name || !handle || !avatar || !banner || !bannerTitle || !tagline || !bio || !about || !subscribers || !ownerId) {
+    return null;
+  }
+  return { id, slug, name, handle, avatar, banner, bannerTitle, tagline, bio, about, subscribers, videoCount, ownerId };
+}
+
+export async function createVideo(formData: FormData) {
+  const parsed = videoValues(formData, "/admin/videos");
+  const { id: _id, ...insertValues } = parsed;
+  let id = "";
+  try {
+    const [created] = await db.insert(videos).values(insertValues).returning({ id: videos.id });
+    id = created?.id ?? "";
+  } catch (error) {
+    bail("/admin/videos", dbMessage(error));
+  }
+  if (!id) bail("/admin/videos", "Could not save that record.");
+  refresh();
+  redirect(`/admin/videos/${id}?saved=1`);
+}
+
+export async function updateVideo(formData: FormData) {
+  const id = text(formData, "id");
+  const back = `/admin/videos/${id}`;
+  const parsed = videoValues(formData, back);
+  if (!parsed.id) bail("/admin/videos", "Missing video id.");
+  const { id: videoId, ...rest } = parsed;
+  try {
+    await db.update(videos).set(rest).where(eq(videos.id, videoId));
+  } catch (error) {
+    bail(back, dbMessage(error));
+  }
+  refresh();
+  redirect(`${back}?saved=1`);
+}
+
+export async function deleteVideo(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) bail("/admin/videos", "Missing video id.");
+  try {
+    const removed = await db.delete(videos).where(eq(videos.id, id)).returning({ id: videos.id });
+    if (removed.length === 0) bail("/admin/videos", "Video was not found.");
+  } catch (error) {
+    bail("/admin/videos", dbMessage(error));
+  }
+  refresh();
+  redirect("/admin/videos");
+}
+
+function videoValues(formData: FormData, back: string) {
+  const id = text(formData, "id");
+  const slug = text(formData, "slug");
+  const channelId = text(formData, "channelId");
+  const channelName = text(formData, "channelName");
+  const title = text(formData, "title");
+  const duration = text(formData, "duration");
+  const views = text(formData, "views");
+  const uploaded = text(formData, "uploaded");
+  const thumbnail = text(formData, "thumbnail");
+  const avatar = text(formData, "avatar");
+  const source = text(formData, "source");
+  const align = text(formData, "align");
+  const shelf = text(formData, "shelf");
+  if (!slug || !channelId || !channelName || !title || !duration || !views || !uploaded || !thumbnail || !avatar) {
+    bail(back, "Slug, channel, title, duration, views, uploaded, thumbnail, and avatar are required.");
+  }
+  if (!sources.includes(source as (typeof sources)[number])) bail(back, "Pick a source.");
+  if (!aligns.includes(align as (typeof aligns)[number])) bail(back, "Pick an alignment.");
+  if (!shelves.includes(shelf as (typeof shelves)[number])) bail(back, "Pick a shelf.");
+  let viewCount = 0;
+  let recency = 0;
+  let likeCount = 0;
+  let sortOrder = 0;
+  let overlay: OverlayPart[][] = [];
+  try {
+    viewCount = wholeNumber(formData, "viewCount");
+    recency = wholeNumber(formData, "recency");
+    likeCount = wholeNumber(formData, "likeCount");
+    sortOrder = wholeNumber(formData, "sortOrder");
+    overlay = parseOverlay(text(formData, "overlay") || "[]");
+  } catch (error) {
+    bail(back, error instanceof Error ? error.message : "Check the numbers and overlay JSON.");
+  }
+  return {
+    id,
+    slug,
+    channelId,
+    channelName,
+    title,
+    genre: text(formData, "genre") || null,
+    topic: text(formData, "topic") || null,
+    live: flag(formData, "live"),
+    duration,
+    views,
+    viewCount,
+    uploaded,
+    recency,
+    thumbnail,
+    avatar,
+    overlay,
+    align,
+    shelf,
+    newRelease: flag(formData, "newRelease"),
+    spoilerFree: flag(formData, "spoilerFree"),
+    topRated: flag(formData, "topRated"),
+    subscribed: flag(formData, "subscribed"),
+    unlisted: flag(formData, "unlisted"),
+    source,
+    likeCount,
+    sortOrder,
+  };
+}
+
+export async function createComment(formData: FormData) {
+  const values = commentValues(formData, "/admin/comments");
+  const { id: _id, ...insertValues } = values;
+  let id = "";
+  try {
+    const [created] = await db.insert(comments).values(insertValues).returning({ id: comments.id });
+    id = created?.id ?? "";
+  } catch (error) {
+    bail("/admin/comments", dbMessage(error));
+  }
+  if (!id) bail("/admin/comments", "Could not save that record.");
+  refresh();
+  redirect(`/admin/comments/${id}?saved=1`);
+}
+
+export async function updateComment(formData: FormData) {
+  const back = `/admin/comments/${encodeURIComponent(text(formData, "id"))}`;
+  const values = commentValues(formData, back);
+  const { id, ...rest } = values;
+  try {
+    await db.update(comments).set(rest).where(eq(comments.id, id));
+  } catch (error) {
+    bail(back, dbMessage(error));
+  }
+  refresh();
+  redirect(`${back}?saved=1`);
+}
+
+export async function deleteComment(formData: FormData) {
+  const id = text(formData, "id");
+  if (!id) bail("/admin/comments", "Missing comment id.");
+  try {
+    const removed = await db.delete(comments).where(eq(comments.id, id)).returning({ id: comments.id });
+    if (removed.length === 0) bail("/admin/comments", "Comment was not found.");
+  } catch (error) {
+    bail("/admin/comments", dbMessage(error));
+  }
+  refresh();
+  redirect("/admin/comments");
+}
+
+function commentValues(formData: FormData, back: string) {
+  const videoId = text(formData, "videoId");
+  const userId = text(formData, "userId");
+  const body = text(formData, "body");
+  const posted = text(formData, "posted");
+  const id = text(formData, "id");
+  if (!videoId || !userId || !body || !posted) {
+    bail(back, "Video, user, comment, and posted time are required.");
+  }
+  let likes = 0;
+  let sortOrder = 0;
+  try {
+    likes = wholeNumber(formData, "likes");
+    sortOrder = wholeNumber(formData, "sortOrder");
+  } catch (error) {
+    bail(back, error instanceof Error ? error.message : "Likes and sort order must be whole numbers.");
+  }
+  return { id, videoId, userId, body, posted, likes, sortOrder };
+}
