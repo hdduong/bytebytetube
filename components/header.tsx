@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
@@ -216,6 +217,9 @@ export function Header({
             ) : null}
           </div>
 
+          <Link href="/admin" className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash">
+            Admin
+          </Link>
           <PhoneToggle />
           <ThemeSwitch />
           <div className="relative">
