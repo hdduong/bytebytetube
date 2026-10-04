@@ -56,13 +56,19 @@ export function ShortsFeed({
                 height: "min(100cqh, calc(100cqw * 16 / 9))",
               }}
             >
-              <Image
-                src={video.thumbnail}
-                alt=""
-                fill
-                sizes="100vw"
-                className="object-cover"
-              />
+              {video.src ? (
+                <video
+                  src={video.src}
+                  poster={video.thumbnail}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <Image src={video.thumbnail} alt="" fill sizes="100vw" className="object-cover" />
+              )}
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-6 left-4 right-16 text-white">
                 <button

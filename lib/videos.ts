@@ -72,6 +72,8 @@ export type Video = {
   topRated?: boolean;
   subscribed?: boolean;
   unlisted?: boolean;
+  source?: "feed" | "explore" | "channel" | "short";
+  src?: string;
 };
 
 export function isGenre(value: string): value is Genre {
