@@ -130,14 +130,16 @@ export function ChannelView({
   return (
     <div className="flex flex-col gap-4 pt-4">
       <section className="relative h-[140px] overflow-hidden rounded-xl bg-[#121212] palm:h-[180px]">
-        <Image
-          src={profile.banner}
-          alt=""
-          fill
-          preload
-          sizes="(min-width: 1180px) 1100px, 100vw"
-          className="object-cover"
-        />
+        {profile.banner ? (
+          <Image
+            src={profile.banner}
+            alt=""
+            fill
+            preload
+            sizes="(min-width: 1180px) 1100px, 100vw"
+            className="object-cover"
+          />
+        ) : null}
       </section>
 
       <section className="flex items-center gap-4 palm:gap-6">
