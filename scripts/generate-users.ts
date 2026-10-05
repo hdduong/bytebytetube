@@ -97,6 +97,7 @@ type MissingUser = {
   id: string;
   name: string;
   handle: string;
+  avatar: string;
   slug: string | null;
   channelName: string | null;
   tagline: string | null;
@@ -236,13 +237,15 @@ async function usersMissingAvatars(sql: Sql) {
   `;
   const missing: MissingUser[] = [];
   for (const row of rows) {
-    const avatar = row.avatar.trim();
+    const stored = row.avatar;
+    const avatar = stored.trim();
     const onDisk = avatar.startsWith("/") && (await fileExists(path.join(ROOT, "public", avatar.slice(1))));
     if (avatar && onDisk) continue;
     missing.push({
       id: row.id,
       name: row.name,
       handle: row.handle,
+      avatar: stored,
       slug: row.slug,
       channelName: row.channel_name,
       tagline: row.tagline,
@@ -287,7 +290,7 @@ async function fillMissingAvatars(sql: Sql, key: string) {
       await tx`
         update channels
         set avatar = ${avatar}
-        where owner_id = ${user.id} and btrim(avatar) = ''
+        where owner_id = ${user.id} and (btrim(avatar) = '' or avatar = ${user.avatar})
       `;
     });
     console.log(`avatar ${user.handle} -> ${avatar}`);
@@ -365,6 +368,12 @@ async function main() {
     return;
   }
   const catalog: GeneratedCatalog = parsed.data;
+  if (catalog.users.length !== count) {
+    console.error(`Expected ${count} users, got ${catalog.users.length}`);
+    await sql.end();
+    process.exitCode = 1;
+    return;
+  }
   const collisions = catalog.users.flatMap((user) =>
     [user.handle, user.channel.handle, user.channel.slug].filter((value) =>
       taken.some((item) => item.toLowerCase() === value.toLowerCase()),
