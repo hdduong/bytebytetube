@@ -31,6 +31,7 @@ export default async function UsersPage({
             <tr>
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">Handle</th>
+              <th className="px-3 py-2 font-medium">Admin</th>
               <th className="px-3 py-2 font-medium">UID</th>
               <th className="px-3 py-2 font-medium"> </th>
             </tr>
@@ -44,6 +45,7 @@ export default async function UsersPage({
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-muted">{user.handle}</td>
+                <td className="px-3 py-2 text-muted">{user.admin ? "Yes" : "No"}</td>
                 <td className="px-3 py-2 font-mono text-[12px] text-muted">{user.id}</td>
                 <td className="px-3 py-2 text-right">
                   <DeleteButton action={deleteUser} name="id" value={user.id} label={user.name} />

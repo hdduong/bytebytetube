@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { channels, comments, users, videos } from "@/drizzle/schema";
+import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
 import type { OverlayPart } from "@/lib/videos";
 
@@ -67,13 +68,19 @@ function parseOverlay(raw: string): OverlayPart[][] {
 }
 
 export async function createUser(formData: FormData) {
+  await requireAdmin();
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
+  const email = text(formData, "email");
+  const admin = flag(formData, "admin");
   if (!name || !handle || !avatar) bail("/admin/users", "Name, handle, and avatar are required.");
   let id = "";
   try {
-    const [created] = await db.insert(users).values({ name, handle, avatar }).returning({ id: users.id });
+    const [created] = await db
+      .insert(users)
+      .values({ name, handle, avatar, email: email || null, admin })
+      .returning({ id: users.id });
     id = created?.id ?? "";
   } catch (error) {
     bail("/admin/users", dbMessage(error));
@@ -84,14 +91,21 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUser(formData: FormData) {
+  const session = await requireAdmin();
   const id = text(formData, "id");
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
+  const email = text(formData, "email");
+  const admin = flag(formData, "admin");
   const back = `/admin/users/${encodeURIComponent(id)}`;
   if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");
+  if (session.user.id === id && !admin) bail(back, "You cannot remove your own admin access.");
   try {
-    await db.update(users).set({ name, handle, avatar }).where(eq(users.id, id));
+    await db
+      .update(users)
+      .set({ name, handle, avatar, email: email || null, admin, updatedAt: new Date() })
+      .where(eq(users.id, id));
   } catch (error) {
     bail(back, dbMessage(error));
   }
@@ -100,6 +114,7 @@ export async function updateUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/users", "Missing user id.");
   try {
@@ -113,6 +128,7 @@ export async function deleteUser(formData: FormData) {
 }
 
 export async function createChannel(formData: FormData) {
+  await requireAdmin();
   const values = channelValues(formData, "/admin/channels");
   if (!values) bail("/admin/channels", "Slug, name, handle, owner, and the text fields are required.");
   const { id: _id, ...insertValues } = values;
@@ -129,6 +145,7 @@ export async function createChannel(formData: FormData) {
 }
 
 export async function updateChannel(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   const back = `/admin/channels/${id}`;
   const values = channelValues(formData, back);
@@ -144,6 +161,7 @@ export async function updateChannel(formData: FormData) {
 }
 
 export async function deleteChannel(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/channels", "Missing channel id.");
   try {
@@ -182,6 +200,7 @@ function channelValues(formData: FormData, back: string) {
 }
 
 export async function createVideo(formData: FormData) {
+  await requireAdmin();
   const parsed = videoValues(formData, "/admin/videos");
   const { id: _id, ...insertValues } = parsed;
   let id = "";
@@ -197,6 +216,7 @@ export async function createVideo(formData: FormData) {
 }
 
 export async function updateVideo(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   const back = `/admin/videos/${id}`;
   const parsed = videoValues(formData, back);
@@ -212,6 +232,7 @@ export async function updateVideo(formData: FormData) {
 }
 
 export async function deleteVideo(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/videos", "Missing video id.");
   try {
@@ -289,6 +310,7 @@ function videoValues(formData: FormData, back: string) {
 }
 
 export async function createComment(formData: FormData) {
+  await requireAdmin();
   const values = commentValues(formData, "/admin/comments");
   const { id: _id, ...insertValues } = values;
   let id = "";
@@ -304,6 +326,7 @@ export async function createComment(formData: FormData) {
 }
 
 export async function updateComment(formData: FormData) {
+  await requireAdmin();
   const back = `/admin/comments/${encodeURIComponent(text(formData, "id"))}`;
   const values = commentValues(formData, back);
   const { id, ...rest } = values;
@@ -317,6 +340,7 @@ export async function updateComment(formData: FormData) {
 }
 
 export async function deleteComment(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/comments", "Missing comment id.");
   try {
