@@ -33,10 +33,14 @@ export function UserForm({ user }: { user?: UserRow }) {
       <Field label="Avatar path">
         <input name="avatar" required defaultValue={user?.avatar ?? "/avatars/avatar-you.png"} className={control} />
       </Field>
-      <Field label="Email">
-        <input name="email" type="email" defaultValue={user?.email ?? ""} className={control} />
-      </Field>
-      <Check name="admin" label="Admin" defaultChecked={user?.admin ?? false} />
+      {user ? (
+        <>
+          <Field label="Email">
+            <input name="email" type="email" defaultValue={user.email ?? ""} className={control} />
+          </Field>
+          <Check name="admin" label="Admin" defaultChecked={user.admin} />
+        </>
+      ) : null}
       <button type="submit" className={submit}>
         {user ? "Save user" : "Create user"}
       </button>

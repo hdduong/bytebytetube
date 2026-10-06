@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { channels, comments, users, videos } from "@/drizzle/schema";
+import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
 import type { OverlayPart } from "@/lib/videos";
@@ -82,12 +82,12 @@ export async function createUser(formData: FormData) {
   const email = text(formData, "email").toLowerCase();
   const admin = flag(formData, "admin");
   if (!name || !handle || !avatar) bail("/admin/users", "Name, handle, and avatar are required.");
+  if (email || admin) {
+    bail("/admin/users", "Sign-in accounts are created on the sign-up page. A catalog user cannot have an email or admin access.");
+  }
   let id = "";
   try {
-    const [created] = await db
-      .insert(users)
-      .values({ name, handle, avatar, email: email || null, admin })
-      .returning({ id: users.id });
+    const [created] = await db.insert(users).values({ name, handle, avatar }).returning({ id: users.id });
     id = created?.id ?? "";
   } catch (error) {
     bail("/admin/users", dbMessage(error));
@@ -108,6 +108,11 @@ export async function updateUser(formData: FormData) {
   const back = `/admin/users/${encodeURIComponent(id)}`;
   if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");
   if (session.user.id === id && !admin) bail(back, "You cannot remove your own admin access.");
+  const [credential] = await db.select({ id: account.id }).from(account).where(eq(account.userId, id)).limit(1);
+  if (credential && !email) bail(back, "This user signs in with that email, so it cannot be cleared.");
+  if (!credential && (email || admin)) {
+    bail(back, "This user has no sign-in. Leave email blank and admin off.");
+  }
   try {
     await db
       .update(users)
@@ -121,9 +126,10 @@ export async function updateUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/users", "Missing user id.");
+  if (session.user.id === id) bail("/admin/users", "You cannot delete your own account.");
   try {
     const removed = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
     if (removed.length === 0) bail("/admin/users", "User was not found.");
