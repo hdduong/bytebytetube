@@ -30,9 +30,9 @@ export default async function LoginPage({
       <h1 className="mt-1 text-[28px] font-medium">Sign in</h1>
       <p className="mt-2 text-[14px] text-muted">Admin pages need a signed-in account with the admin flag.</p>
       {params.error === "forbidden" ? (
-        <p className="mt-4 text-[14px] text-[#ff4e45]">This account is signed in, but it is not an admin.</p>
+        <p className="mt-4 text-[14px] text-danger">This account is signed in, but it is not an admin.</p>
       ) : params.error ? (
-        <p className="mt-4 text-[14px] text-[#ff4e45]">{params.error}</p>
+        <p className="mt-4 text-[14px] text-danger">{params.error}</p>
       ) : null}
       {session ? (
         <section className="mt-6 grid gap-4 rounded-xl border border-line p-4">

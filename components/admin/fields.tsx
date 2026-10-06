@@ -14,7 +14,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export function Notice({ error, saved }: { error?: string; saved?: string }) {
   if (error) {
-    return <p className="mb-4 rounded-lg border border-line bg-raised px-3 py-2 text-[14px] text-[#ff4e45]">{error}</p>;
+    return <p className="mb-4 rounded-lg border border-line bg-raised px-3 py-2 text-[14px] text-danger">{error}</p>;
   }
   if (saved) {
     return <p className="mb-4 rounded-lg border border-line bg-raised px-3 py-2 text-[14px]">Saved.</p>;

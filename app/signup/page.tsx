@@ -23,7 +23,7 @@ export default async function SignUpPage({
       <p className="text-[12px] uppercase tracking-wide text-muted">CinemaTube</p>
       <h1 className="mt-1 text-[28px] font-medium">Sign up</h1>
       <p className="mt-2 text-[14px] text-muted">Create an account for CinemaTube.</p>
-      {params.error ? <p className="mt-4 text-[14px] text-[#ff4e45]">{params.error}</p> : null}
+      {params.error ? <p className="mt-4 text-[14px] text-danger">{params.error}</p> : null}
       <form action={signUp} className="mt-6 grid gap-3">
         <input type="hidden" name="next" value={next} />
         <label className="grid gap-1 text-[13px] text-muted">

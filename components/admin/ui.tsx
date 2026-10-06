@@ -55,7 +55,7 @@ export function DeleteButton({
       }}
     >
       <input type="hidden" name={name} value={value} />
-      <button type="submit" className="text-[13px] text-[#ff4e45]">
+      <button type="submit" className="text-[13px] text-danger">
         Delete
       </button>
     </form>
