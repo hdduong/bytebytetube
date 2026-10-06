@@ -55,7 +55,7 @@ const statements = [
   `alter table verification enable row level security`,
 ];
 
-function loadEnv(text: string) {
+function loadEnv(text) {
   for (const line of text.split(/\r?\n/)) {
     if (!line || line.trim().startsWith("#") || !line.includes("=")) continue;
     const index = line.indexOf("=");
@@ -83,7 +83,7 @@ async function main() {
   await sql.end();
 }
 
-main().catch((error: unknown) => {
+main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(message.replace(/postgresql:\/\/[^@\s]+@/g, "postgresql://***@"));
   process.exit(1);

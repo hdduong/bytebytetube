@@ -8,7 +8,7 @@ Before the first `npm run dev` or `npm start` on a database that does not alread
 npm run db:auth
 ```
 
-That applies `scripts/auth-schema.ts`. It is safe to run again. Set `DATABASE_URL` and `BETTER_AUTH_SECRET` first. See `.env.example`.
+That applies `scripts/auth-schema.mjs` with Node. It is safe to run again. Set `DATABASE_URL` and `BETTER_AUTH_SECRET` first. See `.env.example`.
 
 ## Getting Started
 

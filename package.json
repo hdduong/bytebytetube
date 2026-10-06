@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "db:auth": "tsx scripts/auth-schema.ts"
+    "db:auth": "node scripts/auth-schema.mjs"
   },
   "dependencies": {
     "better-auth": "^1.7.7",
