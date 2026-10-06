@@ -7,6 +7,7 @@ export async function proxy(request: NextRequest) {
   if (!session?.user.admin) {
     const url = new URL("/login", request.url);
     url.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    if (session) url.searchParams.set("error", "forbidden");
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

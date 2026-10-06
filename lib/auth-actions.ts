@@ -35,10 +35,11 @@ export async function signIn(formData: FormData) {
   redirect(`/login?next=${encodeURIComponent(next)}`);
 }
 
-async function removeIncompleteSignup(email: string) {
+async function removeIncompleteSignup(email: string, existingId: string | undefined) {
   await db.delete(users).where(
     and(
       eq(users.email, email),
+      existingId ? sql`${users.id} <> ${existingId}` : sql`true`,
       sql`not exists (select 1 from ${account} where ${account.userId} = ${users.id})`,
     ),
   );
@@ -52,13 +53,14 @@ export async function signUp(formData: FormData) {
   if (!name || !email || password.length < 8) {
     fail("/signup", "Name, email, and a password of at least 8 characters are required.", next);
   }
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   try {
     await auth.api.signUpEmail({
       body: { name, email, password },
       headers: await headers(),
     });
   } catch (error) {
-    await removeIncompleteSignup(email);
+    await removeIncompleteSignup(email, existing?.id);
     fail("/signup", error instanceof APIError ? error.message : "Could not create that account.", next);
   }
   redirect(`/login?next=${encodeURIComponent(next)}`);

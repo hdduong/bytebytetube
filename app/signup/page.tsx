@@ -26,9 +26,18 @@ export default async function SignUpPage({
       {params.error ? <p className="mt-4 text-[14px] text-[#ff4e45]">{params.error}</p> : null}
       <form action={signUp} className="mt-6 grid gap-3">
         <input type="hidden" name="next" value={next} />
-        <input name="name" required placeholder="Name" className={control} />
-        <input name="email" type="email" required placeholder="Email" className={control} />
-        <input name="password" type="password" required minLength={8} placeholder="Password" className={control} />
+        <label className="grid gap-1 text-[13px] text-muted">
+          Name
+          <input name="name" required autoComplete="name" placeholder="Name" className={control} />
+        </label>
+        <label className="grid gap-1 text-[13px] text-muted">
+          Email
+          <input name="email" type="email" required autoComplete="email" placeholder="Email" className={control} />
+        </label>
+        <label className="grid gap-1 text-[13px] text-muted">
+          Password
+          <input name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="Password" className={control} />
+        </label>
         <button type="submit" className={submit}>
           Sign up
         </button>

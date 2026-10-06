@@ -30,18 +30,25 @@ function wholeNumber(formData: FormData, name: string) {
   return value;
 }
 
-function postgresCode(error: unknown) {
+function postgresField(error: unknown, field: string) {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current && typeof current === "object"; depth += 1) {
-    if ("code" in current && typeof current.code === "string") return current.code;
+    if (field in current) {
+      const value = current[field as keyof typeof current];
+      if (typeof value === "string") return value;
+    }
     current = "cause" in current ? current.cause : undefined;
   }
   return undefined;
 }
 
 function dbMessage(error: unknown) {
-  const code = postgresCode(error);
-  if (code === "23505") return "A record with that slug or handle already exists.";
+  const code = postgresField(error, "code");
+  if (code === "23505") {
+    const constraint = postgresField(error, "constraint_name") ?? "";
+    if (constraint.includes("email")) return "A record with that email already exists.";
+    return "A record with that slug or handle already exists.";
+  }
   if (code === "23503") return "Another record still uses this one. Delete or reassign those first.";
   if (code === "22P02") return "That id is not a valid UID.";
   if (error instanceof Error && error.message && !error.message.startsWith("Failed query")) return error.message;
@@ -72,7 +79,7 @@ export async function createUser(formData: FormData) {
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
-  const email = text(formData, "email");
+  const email = text(formData, "email").toLowerCase();
   const admin = flag(formData, "admin");
   if (!name || !handle || !avatar) bail("/admin/users", "Name, handle, and avatar are required.");
   let id = "";
@@ -96,7 +103,7 @@ export async function updateUser(formData: FormData) {
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
-  const email = text(formData, "email");
+  const email = text(formData, "email").toLowerCase();
   const admin = flag(formData, "admin");
   const back = `/admin/users/${encodeURIComponent(id)}`;
   if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");

@@ -450,7 +450,7 @@ async function main() {
     await tx.delete(comments);
     await tx.delete(videoTable);
     await tx.delete(channels);
-    await tx.delete(users);
+    await tx.delete(users).where(sql`not exists (select 1 from account where account.user_id = users.id)`);
     await tx.insert(users).values([...ownerUsers.map(({ channelName: _name, ...user }) => user), ...commentUsers]);
     await tx.insert(channels).values(channelRows);
     await tx.insert(videoTable).values(videoRows);

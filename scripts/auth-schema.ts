@@ -66,7 +66,14 @@ function loadEnv(text: string) {
 }
 
 async function main() {
-  loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+  if (!process.env.DATABASE_URL) {
+    try {
+      loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code !== "ENOENT") throw error;
+    }
+  }
   const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const sql = postgres(connectionString, { prepare: false });

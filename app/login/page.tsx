@@ -59,8 +59,14 @@ export default async function LoginPage({
         <div className="mt-6 grid gap-8">
           <form action={signIn} className="grid gap-3">
             <input type="hidden" name="next" value={next} />
-            <input name="email" type="email" required placeholder="Email" className={control} />
-            <input name="password" type="password" required placeholder="Password" className={control} />
+            <label className="grid gap-1 text-[13px] text-muted">
+              Email
+              <input name="email" type="email" required autoComplete="email" placeholder="Email" className={control} />
+            </label>
+            <label className="grid gap-1 text-[13px] text-muted">
+              Password
+              <input name="password" type="password" required autoComplete="current-password" placeholder="Password" className={control} />
+            </label>
             <button type="submit" className={submit}>
               Sign in
             </button>
