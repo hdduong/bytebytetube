@@ -2,14 +2,19 @@
   "name": "bytebytetube",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint:fix": "eslint --fix",
+    "db:auth": "node scripts/auth-schema.mjs"
   },
   "dependencies": {
+    "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.6",
     "postgres": "^3.4.9",

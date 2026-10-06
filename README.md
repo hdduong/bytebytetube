@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Node.js 22 or newer is required. Better Auth depends on Kysely, which does not run on older Node versions.
+
+## Auth database
+
+Before the first `npm run dev` or `npm start` on a database that does not already have the auth tables, run:
+
+```bash
+npm run db:auth
+```
+
+That applies `scripts/auth-schema.mjs` with Node. It is safe to run again. Set `DATABASE_URL` and `BETTER_AUTH_SECRET` first. See `.env.example`.
+
 ## Getting Started
 
 First, run the development server:

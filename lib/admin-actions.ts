@@ -3,7 +3,8 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { channels, comments, users, videos } from "@/drizzle/schema";
+import { account, channels, comments, users, videos } from "@/drizzle/schema";
+import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
 import type { OverlayPart } from "@/lib/videos";
 
@@ -13,6 +14,12 @@ const shelves = ["fresh", "popular"] as const;
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
+}
+
+function canonicalUserId(value: string) {
+  const id = value.trim().replace(/^\{|\}$/g, "").toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return "";
+  return id;
 }
 
 function flag(formData: FormData, name: string) {
@@ -29,18 +36,25 @@ function wholeNumber(formData: FormData, name: string) {
   return value;
 }
 
-function postgresCode(error: unknown) {
+function postgresField(error: unknown, field: string) {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current && typeof current === "object"; depth += 1) {
-    if ("code" in current && typeof current.code === "string") return current.code;
+    if (field in current) {
+      const value = current[field as keyof typeof current];
+      if (typeof value === "string") return value;
+    }
     current = "cause" in current ? current.cause : undefined;
   }
   return undefined;
 }
 
 function dbMessage(error: unknown) {
-  const code = postgresCode(error);
-  if (code === "23505") return "A record with that slug or handle already exists.";
+  const code = postgresField(error, "code");
+  if (code === "23505") {
+    const constraint = postgresField(error, "constraint_name") ?? "";
+    if (constraint.includes("email")) return "A record with that email already exists.";
+    return "A record with that slug or handle already exists.";
+  }
   if (code === "23503") return "Another record still uses this one. Delete or reassign those first.";
   if (code === "22P02") return "That id is not a valid UID.";
   if (error instanceof Error && error.message && !error.message.startsWith("Failed query")) return error.message;
@@ -67,10 +81,16 @@ function parseOverlay(raw: string): OverlayPart[][] {
 }
 
 export async function createUser(formData: FormData) {
+  await requireAdmin();
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
+  const email = text(formData, "email").toLowerCase();
+  const admin = flag(formData, "admin");
   if (!name || !handle || !avatar) bail("/admin/users", "Name, handle, and avatar are required.");
+  if (email || admin) {
+    bail("/admin/users", "Sign-in accounts are created on the sign-up page. A catalog user cannot have an email or admin access.");
+  }
   let id = "";
   try {
     const [created] = await db.insert(users).values({ name, handle, avatar }).returning({ id: users.id });
@@ -84,14 +104,26 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUser(formData: FormData) {
-  const id = text(formData, "id");
+  const session = await requireAdmin();
+  const id = canonicalUserId(text(formData, "id"));
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
+  const email = text(formData, "email").toLowerCase();
+  const admin = flag(formData, "admin");
   const back = `/admin/users/${encodeURIComponent(id)}`;
   if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");
+  if (canonicalUserId(session.user.id) === id && !admin) bail(back, "You cannot remove your own admin access.");
+  const [credential] = await db.select({ id: account.id }).from(account).where(eq(account.userId, id)).limit(1);
+  if (credential && !email) bail(back, "This user signs in with that email, so it cannot be cleared.");
+  if (!credential && (email || admin)) {
+    bail(back, "This user has no sign-in. Leave email blank and admin off.");
+  }
   try {
-    await db.update(users).set({ name, handle, avatar }).where(eq(users.id, id));
+    await db
+      .update(users)
+      .set({ name, handle, avatar, email: email || null, admin, updatedAt: new Date() })
+      .where(eq(users.id, id));
   } catch (error) {
     bail(back, dbMessage(error));
   }
@@ -100,8 +132,10 @@ export async function updateUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
-  const id = text(formData, "id");
+  const session = await requireAdmin();
+  const id = canonicalUserId(text(formData, "id"));
   if (!id) bail("/admin/users", "Missing user id.");
+  if (canonicalUserId(session.user.id) === id) bail("/admin/users", "You cannot delete your own account.");
   try {
     const removed = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
     if (removed.length === 0) bail("/admin/users", "User was not found.");
@@ -113,6 +147,7 @@ export async function deleteUser(formData: FormData) {
 }
 
 export async function createChannel(formData: FormData) {
+  await requireAdmin();
   const values = channelValues(formData, "/admin/channels");
   if (!values) bail("/admin/channels", "Slug, name, handle, owner, and the text fields are required.");
   const { id: _id, ...insertValues } = values;
@@ -129,6 +164,7 @@ export async function createChannel(formData: FormData) {
 }
 
 export async function updateChannel(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   const back = `/admin/channels/${id}`;
   const values = channelValues(formData, back);
@@ -144,6 +180,7 @@ export async function updateChannel(formData: FormData) {
 }
 
 export async function deleteChannel(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/channels", "Missing channel id.");
   try {
@@ -182,6 +219,7 @@ function channelValues(formData: FormData, back: string) {
 }
 
 export async function createVideo(formData: FormData) {
+  await requireAdmin();
   const parsed = videoValues(formData, "/admin/videos");
   const { id: _id, ...insertValues } = parsed;
   let id = "";
@@ -197,6 +235,7 @@ export async function createVideo(formData: FormData) {
 }
 
 export async function updateVideo(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   const back = `/admin/videos/${id}`;
   const parsed = videoValues(formData, back);
@@ -212,6 +251,7 @@ export async function updateVideo(formData: FormData) {
 }
 
 export async function deleteVideo(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/videos", "Missing video id.");
   try {
@@ -289,6 +329,7 @@ function videoValues(formData: FormData, back: string) {
 }
 
 export async function createComment(formData: FormData) {
+  await requireAdmin();
   const values = commentValues(formData, "/admin/comments");
   const { id: _id, ...insertValues } = values;
   let id = "";
@@ -304,6 +345,7 @@ export async function createComment(formData: FormData) {
 }
 
 export async function updateComment(formData: FormData) {
+  await requireAdmin();
   const back = `/admin/comments/${encodeURIComponent(text(formData, "id"))}`;
   const values = commentValues(formData, back);
   const { id, ...rest } = values;
@@ -317,6 +359,7 @@ export async function updateComment(formData: FormData) {
 }
 
 export async function deleteComment(formData: FormData) {
+  await requireAdmin();
   const id = text(formData, "id");
   if (!id) bail("/admin/comments", "Missing comment id.");
   try {

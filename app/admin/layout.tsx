@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/ui";
+import { signOut } from "@/lib/auth-actions";
+import { requireAdmin } from "@/lib/admin-session";
 
 export const metadata = {
   title: "Admin - CinemaTube",
 };
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await requireAdmin();
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <header className="border-b border-line">
@@ -14,9 +17,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="text-[12px] uppercase tracking-wide text-muted">CinemaTube</p>
             <h1 className="text-[20px] font-medium">Admin</h1>
           </div>
-          <Link href="/" className="text-[14px] text-muted hover:text-ink">
-            Back to site
-          </Link>
+          <div className="flex items-center gap-4">
+            <p className="text-[14px] text-muted">{session.user.email}</p>
+            <form action={signOut}>
+              <button type="submit" className="text-[14px] text-muted hover:text-ink">
+                Sign out
+              </button>
+            </form>
+            <Link href="/" className="text-[14px] text-muted hover:text-ink">
+              Back to site
+            </Link>
+          </div>
         </div>
         <div className="mx-auto max-w-6xl px-4 pb-4">
           <AdminNav />

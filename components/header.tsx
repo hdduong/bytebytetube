@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
 
 type HeaderProps = {
@@ -28,6 +29,7 @@ export function Header({
   const searchId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const { data: session } = authClient.useSession();
   const restoreSearchFocus = useRef(false);
   const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -217,9 +219,24 @@ export function Header({
             ) : null}
           </div>
 
-          <Link href="/admin" className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash">
-            Admin
-          </Link>
+          {session?.user.admin ? (
+            <Link href="/admin" className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash">
+              Admin
+            </Link>
+          ) : null}
+          {session ? (
+            <button
+              type="button"
+              onClick={() => void authClient.signOut()}
+              className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link href="/login" className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash">
+              Sign in
+            </Link>
+          )}
           <PhoneToggle />
           <ThemeSwitch />
           <div className="relative">
