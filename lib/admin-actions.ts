@@ -16,6 +16,12 @@ function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
 
+function canonicalUserId(value: string) {
+  const id = value.trim().replace(/^\{|\}$/g, "").toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return "";
+  return id;
+}
+
 function flag(formData: FormData, name: string) {
   return formData.get(name) === "on";
 }
@@ -99,7 +105,7 @@ export async function createUser(formData: FormData) {
 
 export async function updateUser(formData: FormData) {
   const session = await requireAdmin();
-  const id = text(formData, "id");
+  const id = canonicalUserId(text(formData, "id"));
   const name = text(formData, "name");
   const handle = text(formData, "handle");
   const avatar = text(formData, "avatar");
@@ -107,7 +113,7 @@ export async function updateUser(formData: FormData) {
   const admin = flag(formData, "admin");
   const back = `/admin/users/${encodeURIComponent(id)}`;
   if (!id || !name || !handle || !avatar) bail(back, "Name, handle, and avatar are required.");
-  if (session.user.id === id && !admin) bail(back, "You cannot remove your own admin access.");
+  if (canonicalUserId(session.user.id) === id && !admin) bail(back, "You cannot remove your own admin access.");
   const [credential] = await db.select({ id: account.id }).from(account).where(eq(account.userId, id)).limit(1);
   if (credential && !email) bail(back, "This user signs in with that email, so it cannot be cleared.");
   if (!credential && (email || admin)) {
@@ -127,9 +133,9 @@ export async function updateUser(formData: FormData) {
 
 export async function deleteUser(formData: FormData) {
   const session = await requireAdmin();
-  const id = text(formData, "id");
+  const id = canonicalUserId(text(formData, "id"));
   if (!id) bail("/admin/users", "Missing user id.");
-  if (session.user.id === id) bail("/admin/users", "You cannot delete your own account.");
+  if (canonicalUserId(session.user.id) === id) bail("/admin/users", "You cannot delete your own account.");
   try {
     const removed = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
     if (removed.length === 0) bail("/admin/users", "User was not found.");
