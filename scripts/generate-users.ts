@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import postgres from "postgres";
+import { imageIdFor, uploadImage } from "../lib/cloudflare";
 
 const ENDPOINT = "https://fal.run/openrouter/router";
 const AVATAR_ENDPOINT = "https://fal.run/bytedance/seedream/v5/lite/text-to-image";
@@ -331,7 +332,8 @@ async function createAvatar(key: string, prompt: string, slug: string) {
   const filename = `${slug}.${extension}`;
   await mkdir(AVATAR_DIR, { recursive: true });
   await writeFile(path.join(AVATAR_DIR, filename), Buffer.from(await file.arrayBuffer()));
-  return `/avatars/${filename}`;
+  const bytes = await readFile(path.join(AVATAR_DIR, filename));
+  return uploadImage(bytes, filename, imageIdFor(`avatars/${filename}`));
 }
 
 async function main() {

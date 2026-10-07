@@ -53,6 +53,7 @@ const statements = [
   `alter table session enable row level security`,
   `alter table account enable row level security`,
   `alter table verification enable row level security`,
+  `alter table videos add column if not exists playback text`,
 ];
 
 function loadEnv(text) {

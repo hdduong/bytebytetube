@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
+import { uploadVideo } from "../lib/cloudflare";
 import { FAL_CHEAPEST_IMAGE_TO_VIDEO, falImageToVideoBody } from "./fal-model";
 const ROOT = process.cwd();
 const PROGRESS_PATH = path.join(ROOT, "scripts", ".fal-progress.json");
@@ -112,22 +113,24 @@ async function download(url: string, slug: string) {
   if (!response.ok) throw new Error(`download ${response.status} for ${slug}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   await writeFile(path.join(OUTPUT_DIR, `${slug}.mp4`), bytes);
+  return bytes;
 }
 
 async function main() {
   loadEnv(await readFile(path.join(ROOT, ".env"), "utf8"));
   const key = process.env.FAL_KEY;
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
   if (!key) throw new Error("FAL_KEY is not set");
   if (!connectionString) throw new Error("DATABASE_URL is not set");
 
   const sql = postgres(connectionString, { prepare: false });
+  await sql`set default_transaction_read_only = off`;
+  await sql`alter table videos add column if not exists playback text`;
   const videos = await sql<VideoRow[]>`
     select slug, title, genre, topic, source, thumbnail
     from videos
     order by source, sort_order
   `;
-  await sql.end();
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const progress = await loadProgress();
@@ -170,7 +173,9 @@ async function main() {
         const result = await fal(key, job.responseUrl);
         const url = result.video?.url as string | undefined;
         if (!url) throw new Error(`no video url for ${job.slug}`);
-        await download(url, job.slug);
+        const bytes = await download(url, job.slug);
+        const playback = await uploadVideo(bytes, `${job.slug}.mp4`, job.slug);
+        await sql`update videos set playback = ${playback} where slug = ${job.slug}`;
         progress.done.push(job.slug);
         done.add(job.slug);
         await saveProgress(progress);
@@ -190,6 +195,7 @@ async function main() {
   }
 
   console.log(`finished ${done.size}/${videos.length} failed=${Object.keys(progress.failed).length}`);
+  await sql.end();
 }
 
 main().catch((error: unknown) => {

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { CommentIcon, ShareIcon, ThumbUpIcon } from "@/components/icons";
+import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
 import type { Video } from "@/lib/videos";
 
@@ -57,7 +58,7 @@ export function ShortsFeed({
               }}
             >
               {video.src ? (
-                <video
+                <MediaVideo
                   src={video.src}
                   poster={video.thumbnail}
                   autoPlay

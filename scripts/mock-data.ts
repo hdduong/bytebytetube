@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
 import { channels, comments, users, videos as videoTable } from "../drizzle/schema";
+import { imageIdFor, uploadImage, uploadVideo } from "../lib/cloudflare";
 import { exploreTopics, genres, type ExploreTopic, type Genre } from "../lib/videos";
 import type { OverlayPart } from "../lib/videos";
 
@@ -245,6 +248,20 @@ const client = postgres(connectionString, { prepare: false });
 const db = drizzle(client);
 
 async function main() {
+  try {
+    const text = await readFile(path.join(process.cwd(), ".env"), "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      if (!line || line.trim().startsWith("#") || !line.includes("=")) continue;
+      const index = line.indexOf("=");
+      const name = line.slice(0, index).trim();
+      const value = line.slice(index + 1).trim().replace(/^"|"$/g, "");
+      if (!process.env[name]) process.env[name] = value;
+    }
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
+
   const usedSlugs = new Set<string>();
   function uniqueSlug(title: string) {
     const base = slugify(title) || "video";
@@ -445,6 +462,42 @@ async function main() {
       };
     }),
   );
+
+  const hosted = new Map<string, string>();
+  async function hostImage(localPath: string) {
+    if (!localPath || localPath.startsWith("https://")) return localPath;
+    const cached = hosted.get(localPath);
+    if (cached) return cached;
+    const file = path.join(process.cwd(), "public", localPath.replace(/^\//, ""));
+    try {
+      const bytes = await readFile(file);
+      const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath));
+      hosted.set(localPath, url);
+      return url;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code === "ENOENT") return localPath;
+      throw error;
+    }
+  }
+
+  for (const user of [...ownerUsers, ...commentUsers]) user.avatar = await hostImage(user.avatar);
+  for (const channel of channelRows) {
+    channel.avatar = await hostImage(channel.avatar);
+    channel.banner = await hostImage(channel.banner);
+  }
+  for (const video of videoRows) {
+    video.thumbnail = await hostImage(video.thumbnail);
+    video.avatar = await hostImage(video.avatar);
+    const file = path.join(process.cwd(), "public", "videos", `${video.slug}.mp4`);
+    try {
+      const bytes = await readFile(file);
+      video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug);
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code !== "ENOENT") throw error;
+    }
+  }
 
   await db.transaction(async (tx) => {
     await tx.delete(comments);

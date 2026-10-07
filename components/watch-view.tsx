@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { MoreIcon, ThumbUpIcon } from "@/components/icons";
+import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
 import type { Video } from "@/lib/videos";
 import {
@@ -170,7 +171,7 @@ export function WatchView({
           className="relative aspect-video overflow-hidden rounded-xl bg-black"
         >
           {video.src ? (
-            <video
+            <MediaVideo
               key={video.src}
               ref={mediaRef}
               src={video.src}
