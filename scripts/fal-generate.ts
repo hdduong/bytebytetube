@@ -143,6 +143,7 @@ async function main() {
   if (!connectionString) throw new Error("DATABASE_URL is not set");
 
   const sql = postgres(connectionString, { prepare: false });
+  try {
   await sql`set default_transaction_read_only = off`;
   await sql`alter table videos add column if not exists playback text`;
   const videos = await sql<VideoRow[]>`
@@ -150,10 +151,20 @@ async function main() {
     from videos
     order by source, sort_order
   `;
+  const hostedRows = await sql<{ slug: string }[]>`select slug from videos where playback is not null`;
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const progress = await loadProgress();
   const done = new Set(progress.done);
+  for (const slug of [...done]) {
+    if (!hostedRows.some((row) => row.slug === slug)) done.delete(slug);
+  }
+  for (const row of hostedRows) done.add(row.slug);
+  for (const slug of Object.keys(progress.failed)) {
+    if (!(await fileExists(path.join(OUTPUT_DIR, `${slug}.mp4`)))) delete progress.failed[slug];
+  }
+  progress.done = [...done];
+  let incomplete = false;
   for (const video of videos) {
     if (done.has(video.slug)) continue;
     if (!(await fileExists(path.join(OUTPUT_DIR, `${video.slug}.mp4`)))) continue;
@@ -165,6 +176,7 @@ async function main() {
       console.log(`hosted existing ${video.slug}`);
     } catch (error) {
       progress.failed[video.slug] = redact(error);
+      incomplete = true;
       console.error(`failed to host ${video.slug}: ${redact(error)}`);
     }
   }
@@ -185,11 +197,13 @@ async function main() {
       } catch (error) {
         const message = redact(error);
         progress.failed[video.slug] = message;
+        incomplete = true;
         await saveProgress(progress);
         console.error(`failed to queue ${video.slug}: ${message}`);
         if (message.includes("fal 401") || message.includes("fal 403") || message.includes("fal 402")) {
           throw error;
         }
+        if (!(await fileExists(path.join(OUTPUT_DIR, `${video.slug}.mp4`)))) delete progress.failed[video.slug];
       }
     }
 
@@ -215,6 +229,7 @@ async function main() {
           await sql`update videos set playback = ${playback} where slug = ${job.slug}`;
         } catch (error) {
           progress.failed[job.slug] = redact(error);
+          incomplete = true;
           console.error(`failed to host ${job.slug}: ${redact(error)}`);
           continue;
         }
@@ -225,6 +240,7 @@ async function main() {
       } catch (error) {
         const message = redact(error);
         if (message.includes("fal 401") || message.includes("fal 403")) throw error;
+        incomplete = true;
         if (await fileExists(path.join(OUTPUT_DIR, `${job.slug}.mp4`))) progress.failed[job.slug] = message;
         console.error(`failed ${job.slug}: ${message}`);
       }
@@ -237,7 +253,10 @@ async function main() {
   }
 
   console.log(`finished ${done.size}/${videos.length} failed=${Object.keys(progress.failed).length}`);
-  await sql.end();
+  if (incomplete || done.size < videos.length) process.exitCode = 1;
+  } finally {
+    await sql.end();
+  }
 }
 
 main().catch((error: unknown) => {

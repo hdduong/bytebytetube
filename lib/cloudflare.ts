@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+
+type CloudflareBody<T> = {
   success?: boolean;
   errors?: { message?: string }[];
   result?: T;
