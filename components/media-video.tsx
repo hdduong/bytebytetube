@@ -30,6 +30,9 @@ export const MediaVideo = forwardRef<HTMLVideoElement, MediaVideoProps>(function
       const hls = new Hls();
       hls.loadSource(src);
       hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (video.autoplay) void video.play().catch(() => undefined);
+      });
       player = hls;
     });
     return () => {

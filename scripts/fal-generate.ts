@@ -88,7 +88,8 @@ async function saveProgress(progress: Progress) {
   await writeFile(PROGRESS_PATH, JSON.stringify(progress, null, 2));
 }
 
-async function dataUri(thumbnail: string) {
+async function thumbnailInput(thumbnail: string) {
+  if (thumbnail.startsWith("https://") || thumbnail.startsWith("http://")) return thumbnail;
   const file = path.join(ROOT, "public", thumbnail.replace(/^\//, ""));
   const bytes = await readFile(file);
   const type = thumbnail.endsWith(".png") ? "image/png" : "image/jpeg";
@@ -98,7 +99,7 @@ async function dataUri(thumbnail: string) {
 async function submit(key: string, video: VideoRow): Promise<Job> {
   const body = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
     method: "POST",
-    body: JSON.stringify(falImageToVideoBody(await dataUri(video.thumbnail), promptFor(video))),
+    body: JSON.stringify(falImageToVideoBody(await thumbnailInput(video.thumbnail), promptFor(video))),
   });
   return {
     slug: video.slug,

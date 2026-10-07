@@ -486,13 +486,28 @@ async function main() {
     channel.avatar = await hostImage(channel.avatar);
     channel.banner = await hostImage(channel.banner);
   }
+  const existingPlayback = new Map<string, string>();
+  const saved = await client<{ slug: string; playback: string | null }[]>`
+    select slug, playback from videos where playback is not null
+  `;
+  for (const row of saved) {
+    if (row.playback) existingPlayback.set(row.slug, row.playback);
+  }
+  const refreshMedia = process.argv.includes("--refresh-media");
+
   for (const video of videoRows) {
     video.thumbnail = await hostImage(video.thumbnail);
     video.avatar = await hostImage(video.avatar);
+    const kept = existingPlayback.get(video.slug ?? "");
+    if (kept && !refreshMedia) {
+      video.playback = kept;
+      continue;
+    }
+    if (!refreshMedia) continue;
     const file = path.join(process.cwd(), "public", "videos", `${video.slug}.mp4`);
     try {
       const bytes = await readFile(file);
-      video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug);
+      video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug ?? "video");
     } catch (error) {
       const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
       if (code !== "ENOENT") throw error;

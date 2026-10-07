@@ -241,7 +241,7 @@ async function usersMissingAvatars(sql: Sql) {
     const stored = row.avatar;
     const avatar = stored.trim();
     const onDisk = avatar.startsWith("/") && (await fileExists(path.join(ROOT, "public", avatar.slice(1))));
-    if (avatar && onDisk) continue;
+    if (avatar.startsWith("https://") || onDisk) continue;
     missing.push({
       id: row.id,
       name: row.name,
