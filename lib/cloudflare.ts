@@ -1,4 +1,4 @@
-type CloudflareBody<T> = {
+import { createHash } from "node:crypto";
   success?: boolean;
   errors?: { message?: string }[];
   result?: T;
@@ -49,8 +49,10 @@ type HostedImage = { id?: string; variants?: string[] };
 type StreamVideo = { uid?: string; playback?: { hls?: string } };
 
 export function imageIdFor(localPath: string) {
-  const base = localPath.replace(/^\//, "").replace(/\.[a-z0-9]+$/i, "");
-  return `cinematube-${base}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 80);
+  const normalized = localPath.replace(/^\//, "").replace(/\.[a-z0-9]+$/i, "").replace(/[^A-Za-z0-9_-]/g, "-");
+  const hash = createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+  const prefix = normalized.slice(0, 80 - "cinematube-".length - 1 - hash.length);
+  return `cinematube-${prefix}-${hash}`;
 }
 
 function deliveryUrl(image: HostedImage | undefined) {

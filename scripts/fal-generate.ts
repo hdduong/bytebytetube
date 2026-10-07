@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
 import { uploadVideo } from "../lib/cloudflare";
@@ -109,6 +109,24 @@ async function submit(key: string, video: VideoRow): Promise<Job> {
   };
 }
 
+async function fileExists(file: string) {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function publishExistingClip(sql: postgres.Sql, slug: string) {
+  const file = path.join(OUTPUT_DIR, `${slug}.mp4`);
+  if (!(await fileExists(file))) return false;
+  const bytes = await readFile(file);
+  const playback = await uploadVideo(bytes, `${slug}.mp4`, slug);
+  await sql`update videos set playback = ${playback} where slug = ${slug}`;
+  return true;
+}
+
 async function download(url: string, slug: string) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`download ${response.status} for ${slug}`);
@@ -136,7 +154,24 @@ async function main() {
 
   const progress = await loadProgress();
   const done = new Set(progress.done);
-  const pending = videos.filter((video) => !done.has(video.slug) && !progress.jobs.some((job) => job.slug === video.slug));
+  for (const video of videos) {
+    if (done.has(video.slug)) continue;
+    if (!(await fileExists(path.join(OUTPUT_DIR, `${video.slug}.mp4`)))) continue;
+    try {
+      await publishExistingClip(sql, video.slug);
+      progress.done.push(video.slug);
+      done.add(video.slug);
+      delete progress.failed[video.slug];
+      console.log(`hosted existing ${video.slug}`);
+    } catch (error) {
+      progress.failed[video.slug] = redact(error);
+      console.error(`failed to host ${video.slug}: ${redact(error)}`);
+    }
+  }
+  await saveProgress(progress);
+  const pending = videos.filter(
+    (video) => !done.has(video.slug) && !progress.failed[video.slug] && !progress.jobs.some((job) => job.slug === video.slug),
+  );
   console.log(`catalog=${videos.length} done=${done.size} queued=${progress.jobs.length} waiting=${pending.length}`);
 
   while (done.size < videos.length) {
@@ -175,8 +210,14 @@ async function main() {
         const url = result.video?.url as string | undefined;
         if (!url) throw new Error(`no video url for ${job.slug}`);
         const bytes = await download(url, job.slug);
-        const playback = await uploadVideo(bytes, `${job.slug}.mp4`, job.slug);
-        await sql`update videos set playback = ${playback} where slug = ${job.slug}`;
+        try {
+          const playback = await uploadVideo(bytes, `${job.slug}.mp4`, job.slug);
+          await sql`update videos set playback = ${playback} where slug = ${job.slug}`;
+        } catch (error) {
+          progress.failed[job.slug] = redact(error);
+          console.error(`failed to host ${job.slug}: ${redact(error)}`);
+          continue;
+        }
         progress.done.push(job.slug);
         done.add(job.slug);
         await saveProgress(progress);
@@ -184,7 +225,7 @@ async function main() {
       } catch (error) {
         const message = redact(error);
         if (message.includes("fal 401") || message.includes("fal 403")) throw error;
-        progress.failed[job.slug] = message;
+        if (await fileExists(path.join(OUTPUT_DIR, `${job.slug}.mp4`))) progress.failed[job.slug] = message;
         console.error(`failed ${job.slug}: ${message}`);
       }
     }

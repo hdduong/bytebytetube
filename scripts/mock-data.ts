@@ -510,7 +510,11 @@ async function main() {
       video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug ?? "video");
     } catch (error) {
       const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-      if (code !== "ENOENT") throw error;
+      if (code === "ENOENT") {
+        if (kept) video.playback = kept;
+        continue;
+      }
+      throw error;
     }
   }
 
