@@ -43,7 +43,7 @@ function toVideo(row: typeof videos.$inferSelect, channelSlug: string): StoredVi
     subscribed: row.subscribed || undefined,
     unlisted: row.unlisted || undefined,
     source: row.source === "explore" || row.source === "channel" || row.source === "short" ? row.source : "feed",
-    src: `/videos/${row.slug}.mp4`,
+    src: row.playback || `/videos/${row.slug}.mp4`,
     likeCount: row.likeCount,
     viewCount: row.viewCount,
     recency: row.recency,

@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
 import { channels, comments, users, videos as videoTable } from "../drizzle/schema";
+import { imageIdFor, uploadImage, uploadVideo } from "../lib/cloudflare";
+import { readSavedPlayback, writeSavedPlayback } from "./saved-playback";
 import { exploreTopics, genres, type ExploreTopic, type Genre } from "../lib/videos";
 import type { OverlayPart } from "../lib/videos";
 
@@ -235,6 +240,24 @@ function uploaded(index: number) {
   return `${Math.max(1, Math.round(index / 30))} months ago`;
 }
 
+function loadEnvFile() {
+  try {
+    const text = readFileSync(path.join(process.cwd(), ".env"), "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      if (!line || line.trim().startsWith("#") || !line.includes("=")) continue;
+      const index = line.indexOf("=");
+      const name = line.slice(0, index).trim();
+      const value = line.slice(index + 1).trim().replace(/^"|"$/g, "");
+      if (!process.env[name]) process.env[name] = value;
+    }
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
+}
+
+loadEnvFile();
+
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   console.error("DATABASE_URL is not set");
@@ -446,6 +469,73 @@ async function main() {
     }),
   );
 
+  const hosted = new Map<string, string>();
+  async function hostImage(localPath: string) {
+    if (!localPath || localPath.startsWith("https://")) return localPath;
+    const cached = hosted.get(localPath);
+    if (cached) return cached;
+    const file = path.join(process.cwd(), "public", localPath.replace(/^\//, ""));
+    try {
+      const bytes = await readFile(file);
+      const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath, bytes));
+      hosted.set(localPath, url);
+      return url;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code === "ENOENT") return localPath;
+      throw error;
+    }
+  }
+
+  for (const user of [...ownerUsers, ...commentUsers]) user.avatar = await hostImage(user.avatar);
+  for (const channel of channelRows) {
+    channel.avatar = await hostImage(channel.avatar);
+    channel.banner = await hostImage(channel.banner);
+  }
+  const existingPlayback = new Map<string, string>();
+  const saved = await client<{ slug: string; playback: string | null }[]>`
+    select slug, playback from videos where playback is not null
+  `;
+  for (const row of saved) {
+    if (row.playback) existingPlayback.set(row.slug, row.playback);
+  }
+  const refreshMedia = process.argv.includes("--refresh-media");
+  const remembered = await readSavedPlayback();
+  const refreshed: string[] = [];
+
+  for (const video of videoRows) {
+    video.thumbnail = await hostImage(video.thumbnail);
+    video.avatar = await hostImage(video.avatar);
+    const slug = video.slug ?? "";
+    const kept = existingPlayback.get(slug);
+    if (kept && !refreshMedia) {
+      video.playback = kept;
+      continue;
+    }
+    if (!refreshMedia) continue;
+    const savedPlayback = remembered[slug];
+    if (savedPlayback) {
+      video.playback = savedPlayback;
+      refreshed.push(slug);
+      continue;
+    }
+    const file = path.join(process.cwd(), "public", "videos", `${video.slug}.mp4`);
+    try {
+      const bytes = await readFile(file);
+      video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug ?? "video");
+      remembered[slug] = video.playback;
+      await writeSavedPlayback(remembered);
+      refreshed.push(slug);
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code === "ENOENT") {
+        if (kept) video.playback = kept;
+        continue;
+      }
+      throw error;
+    }
+  }
+
   await db.transaction(async (tx) => {
     await tx.delete(comments);
     await tx.delete(videoTable);
@@ -456,6 +546,8 @@ async function main() {
     await tx.insert(videoTable).values(videoRows);
     await tx.insert(comments).values(commentRows);
   });
+  for (const slug of refreshed) delete remembered[slug];
+  if (refreshed.length > 0) await writeSavedPlayback(remembered);
 
   const counts = await db.select({
     users: sql<number>`(select count(*)::int from users)`,

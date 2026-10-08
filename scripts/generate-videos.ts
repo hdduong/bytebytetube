@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, access } from "node:fs/promises";
+import { mkdir, access, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import ffmpegPath from "ffmpeg-static";
@@ -37,7 +37,14 @@ async function exists(file: string) {
 async function render(slug: string, thumbnail: string, source: string) {
   const output = path.join(outputDir, `${slug}.mp4`);
   if (await exists(output)) return "skipped";
-  const input = path.join(root, "public", thumbnail.replace(/^\//, ""));
+  let input = path.join(root, "public", thumbnail.replace(/^\//, ""));
+  if (thumbnail.startsWith("https://") || thumbnail.startsWith("http://")) {
+    const response = await fetch(thumbnail);
+    if (!response.ok) throw new Error(`thumbnail download ${response.status} for ${slug}`);
+    const extension = thumbnail.includes(".png") ? "png" : "jpg";
+    input = path.join(outputDir, `.thumb-${slug}.${extension}`);
+    await writeFile(input, Buffer.from(await response.arrayBuffer()));
+  }
   const portrait = source === "short";
   const scale = portrait
     ? "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280"

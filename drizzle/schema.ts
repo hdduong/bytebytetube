@@ -66,6 +66,7 @@ export const videos = pgTable(
     source: text("source").notNull(),
     likeCount: integer("like_count").notNull(),
     sortOrder: integer("sort_order").notNull(),
+    playback: text("playback"),
   },
   (table) => [index("videos_channel_id_idx").on(table.channelId), index("videos_source_idx").on(table.source)],
 );

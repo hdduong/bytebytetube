@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CommentIcon, ShareIcon, ThumbUpIcon } from "@/components/icons";
+import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
 import type { Video } from "@/lib/videos";
 
@@ -20,6 +21,25 @@ export function ShortsFeed({
   onChannel: (channel: string) => void;
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState(videos[0]?.id ?? "");
+  const scroller = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.intersectionRatio >= 0.6)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        const id = visible?.target.getAttribute("data-short-id");
+        if (id) setActiveId(id);
+      },
+      { root, threshold: 0.6 },
+    );
+    for (const item of root.querySelectorAll("[data-short-id]")) observer.observe(item);
+    return () => observer.disconnect();
+  }, [videos]);
 
   async function share(videoId: string) {
     setCopiedId(videoId);
@@ -35,6 +55,7 @@ export function ShortsFeed({
 
   return (
     <section
+      ref={scroller}
       aria-label="Shorts"
       className={cn(
         "snap-y snap-mandatory overflow-y-auto overscroll-y-contain",
@@ -46,6 +67,7 @@ export function ShortsFeed({
         return (
           <article
             key={video.id}
+            data-short-id={video.id}
             className="flex h-full w-full shrink-0 snap-start snap-always items-center justify-center bg-black [container-type:size]"
           >
             <div
@@ -57,10 +79,11 @@ export function ShortsFeed({
               }}
             >
               {video.src ? (
-                <video
+                <MediaVideo
                   src={video.src}
                   poster={video.thumbnail}
-                  autoPlay
+                  active={video.id === activeId}
+                  autoPlay={video.id === activeId}
                   muted
                   loop
                   playsInline

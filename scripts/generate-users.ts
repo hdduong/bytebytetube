@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import postgres from "postgres";
+import { imageIdFor, uploadImage } from "../lib/cloudflare";
 
 const ENDPOINT = "https://fal.run/openrouter/router";
 const AVATAR_ENDPOINT = "https://fal.run/bytedance/seedream/v5/lite/text-to-image";
@@ -240,7 +241,7 @@ async function usersMissingAvatars(sql: Sql) {
     const stored = row.avatar;
     const avatar = stored.trim();
     const onDisk = avatar.startsWith("/") && (await fileExists(path.join(ROOT, "public", avatar.slice(1))));
-    if (avatar && onDisk) continue;
+    if (avatar.startsWith("https://") || onDisk) continue;
     missing.push({
       id: row.id,
       name: row.name,
@@ -292,6 +293,12 @@ async function fillMissingAvatars(sql: Sql, key: string) {
         set avatar = ${avatar}
         where owner_id = ${user.id} and (btrim(avatar) = '' or avatar = ${user.avatar})
       `;
+      await tx`
+        update videos
+        set avatar = ${avatar}
+        where channel_id in (select id from channels where owner_id = ${user.id})
+          and (btrim(avatar) = '' or avatar = ${user.avatar})
+      `;
     });
     console.log(`avatar ${user.handle} -> ${avatar}`);
   }
@@ -331,7 +338,8 @@ async function createAvatar(key: string, prompt: string, slug: string) {
   const filename = `${slug}.${extension}`;
   await mkdir(AVATAR_DIR, { recursive: true });
   await writeFile(path.join(AVATAR_DIR, filename), Buffer.from(await file.arrayBuffer()));
-  return `/avatars/${filename}`;
+  const bytes = await readFile(path.join(AVATAR_DIR, filename));
+  return uploadImage(bytes, filename, imageIdFor(`avatars/${filename}`, bytes));
 }
 
 async function main() {
