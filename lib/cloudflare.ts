@@ -51,10 +51,10 @@ type HostedImage = { id?: string; variants?: string[] };
 type StreamVideo = { uid?: string; playback?: { hls?: string } };
 
 export function imageIdFor(localPath: string) {
-  const normalized = localPath.replace(/^\//, "").replace(/\.[a-z0-9]+$/i, "").replace(/[^A-Za-z0-9_-]/g, "-");
-  const hash = createHash("sha256").update(normalized).digest("hex").slice(0, 16);
-  const prefix = normalized.slice(0, 80 - "cinematube-".length - 1 - hash.length);
-  return `cinematube-${prefix}-${hash}`;
+  const full = localPath.replace(/^\//, "");
+  const hash = createHash("sha256").update(full).digest("hex").slice(0, 16);
+  const prefix = full.replace(/[^A-Za-z0-9_-]/g, "-").replace(/\.[a-z0-9]+$/i, "");
+  return `cinematube-${prefix.slice(0, 80 - "cinematube-".length - 1 - hash.length)}-${hash}`;
 }
 
 function deliveryUrl(image: HostedImage | undefined) {

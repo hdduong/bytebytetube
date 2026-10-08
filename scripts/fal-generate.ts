@@ -164,6 +164,7 @@ async function main() {
     if (!(await fileExists(path.join(OUTPUT_DIR, `${slug}.mp4`)))) delete progress.failed[slug];
   }
   progress.done = [...done];
+  progress.jobs = progress.jobs.filter((job) => !done.has(job.slug));
   let incomplete = false;
   for (const video of videos) {
     if (done.has(video.slug)) continue;
@@ -180,6 +181,8 @@ async function main() {
       console.error(`failed to host ${video.slug}: ${redact(error)}`);
     }
   }
+  progress.jobs = progress.jobs.filter((job) => !done.has(job.slug));
+  progress.done = [...done];
   await saveProgress(progress);
   const pending = videos.filter(
     (video) => !done.has(video.slug) && !progress.failed[video.slug] && !progress.jobs.some((job) => job.slug === video.slug),

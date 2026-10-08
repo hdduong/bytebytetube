@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -238,18 +239,9 @@ function uploaded(index: number) {
   return `${Math.max(1, Math.round(index / 30))} months ago`;
 }
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error("DATABASE_URL is not set");
-  process.exit(1);
-}
-
-const client = postgres(connectionString, { prepare: false });
-const db = drizzle(client);
-
-async function main() {
+function loadEnvFile() {
   try {
-    const text = await readFile(path.join(process.cwd(), ".env"), "utf8");
+    const text = readFileSync(path.join(process.cwd(), ".env"), "utf8");
     for (const line of text.split(/\r?\n/)) {
       if (!line || line.trim().startsWith("#") || !line.includes("=")) continue;
       const index = line.indexOf("=");
@@ -261,7 +253,20 @@ async function main() {
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
     if (code !== "ENOENT") throw error;
   }
+}
 
+loadEnvFile();
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("DATABASE_URL is not set");
+  process.exit(1);
+}
+
+const client = postgres(connectionString, { prepare: false });
+const db = drizzle(client);
+
+async function main() {
   const usedSlugs = new Set<string>();
   function uniqueSlug(title: string) {
     const base = slugify(title) || "video";

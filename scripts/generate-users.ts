@@ -293,6 +293,12 @@ async function fillMissingAvatars(sql: Sql, key: string) {
         set avatar = ${avatar}
         where owner_id = ${user.id} and (btrim(avatar) = '' or avatar = ${user.avatar})
       `;
+      await tx`
+        update videos
+        set avatar = ${avatar}
+        where channel_id in (select id from channels where owner_id = ${user.id})
+          and (btrim(avatar) = '' or avatar = ${user.avatar})
+      `;
     });
     console.log(`avatar ${user.handle} -> ${avatar}`);
   }
