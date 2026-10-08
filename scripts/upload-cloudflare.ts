@@ -21,6 +21,16 @@ function report(error: unknown) {
   return message.replace(/Bearer\s+\S+/g, "Bearer ***").replace(/postgresql:\/\/[^@\s]+@/g, "postgresql://***@");
 }
 
+function fileInside(root: string, localPath: string) {
+  const base = path.resolve(root);
+  const file = path.resolve(base, localPath.replace(/^[/\\]+/, ""));
+  const relative = path.relative(base, file);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Refusing to read a file outside ${path.basename(base)}`);
+  }
+  return file;
+}
+
 async function main() {
   try {
     loadEnv(await readFile(path.join(ROOT, ".env"), "utf8"));
@@ -48,7 +58,7 @@ async function main() {
   const images = [...new Set(rows.map((row) => row.path).filter((value): value is string => !!value && !value.startsWith("http")))];
   let imageCount = 0;
   for (const localPath of images) {
-    const file = path.join(ROOT, "public", localPath.replace(/^\//, ""));
+    const file = fileInside(path.join(ROOT, "public"), localPath);
     const bytes = await readFile(file);
     const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath, bytes));
     await sql`update users set avatar = ${url} where avatar = ${localPath}`;
@@ -68,7 +78,7 @@ async function main() {
     try {
       let playback = remembered[video.slug];
       if (!playback) {
-        const bytes = await readFile(path.join(ROOT, "public", "videos", `${video.slug}.mp4`));
+        const bytes = await readFile(fileInside(path.join(ROOT, "public", "videos"), `${video.slug}.mp4`));
         playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug);
         remembered[video.slug] = playback;
         await writeSavedPlayback(remembered);

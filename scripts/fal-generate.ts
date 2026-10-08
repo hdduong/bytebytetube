@@ -77,11 +77,25 @@ async function fal(key: string, url: string, init?: RequestInit) {
   return text ? JSON.parse(text) : {};
 }
 
+function failureMap(value: unknown) {
+  const failed: Record<string, string> = Object.create(null);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return failed;
+  for (const [slug, message] of Object.entries(value)) {
+    if (typeof message === "string") failed[slug] = message;
+  }
+  return failed;
+}
+
 async function loadProgress(): Promise<Progress> {
   try {
-    return JSON.parse(await readFile(PROGRESS_PATH, "utf8")) as Progress;
+    const parsed = JSON.parse(await readFile(PROGRESS_PATH, "utf8")) as Partial<Progress>;
+    return {
+      done: Array.isArray(parsed.done) ? parsed.done.filter((slug) => typeof slug === "string") : [],
+      jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
+      failed: failureMap(parsed.failed),
+    };
   } catch {
-    return { done: [], jobs: [], failed: {} };
+    return { done: [], jobs: [], failed: failureMap(null) };
   }
 }
 
@@ -194,7 +208,7 @@ async function main() {
   progress.done = [...done];
   await saveProgress(progress);
   const pending = videos.filter(
-    (video) => !done.has(video.slug) && !progress.failed[video.slug] && !progress.jobs.some((job) => job.slug === video.slug),
+    (video) => !done.has(video.slug) && !Object.hasOwn(progress.failed, video.slug) && !progress.jobs.some((job) => job.slug === video.slug),
   );
   console.log(`catalog=${videos.length} done=${done.size} queued=${progress.jobs.length} waiting=${pending.length}`);
 

@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { sql } from "drizzle-orm";
 import { channels, comments, users, videos as videoTable } from "../drizzle/schema";
 import { imageIdFor, uploadImage, uploadVideo } from "../lib/cloudflare";
+import { readSavedPlayback, writeSavedPlayback } from "./saved-playback";
 import { exploreTopics, genres, type ExploreTopic, type Genre } from "../lib/videos";
 import type { OverlayPart } from "../lib/videos";
 
@@ -499,20 +500,32 @@ async function main() {
     if (row.playback) existingPlayback.set(row.slug, row.playback);
   }
   const refreshMedia = process.argv.includes("--refresh-media");
+  const remembered = await readSavedPlayback();
+  const refreshed: string[] = [];
 
   for (const video of videoRows) {
     video.thumbnail = await hostImage(video.thumbnail);
     video.avatar = await hostImage(video.avatar);
-    const kept = existingPlayback.get(video.slug ?? "");
+    const slug = video.slug ?? "";
+    const kept = existingPlayback.get(slug);
     if (kept && !refreshMedia) {
       video.playback = kept;
       continue;
     }
     if (!refreshMedia) continue;
+    const savedPlayback = remembered[slug];
+    if (savedPlayback) {
+      video.playback = savedPlayback;
+      refreshed.push(slug);
+      continue;
+    }
     const file = path.join(process.cwd(), "public", "videos", `${video.slug}.mp4`);
     try {
       const bytes = await readFile(file);
       video.playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug ?? "video");
+      remembered[slug] = video.playback;
+      await writeSavedPlayback(remembered);
+      refreshed.push(slug);
     } catch (error) {
       const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
       if (code === "ENOENT") {
@@ -533,6 +546,8 @@ async function main() {
     await tx.insert(videoTable).values(videoRows);
     await tx.insert(comments).values(commentRows);
   });
+  for (const slug of refreshed) delete remembered[slug];
+  if (refreshed.length > 0) await writeSavedPlayback(remembered);
 
   const counts = await db.select({
     users: sql<number>`(select count(*)::int from users)`,
