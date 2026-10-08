@@ -21,6 +21,7 @@
 /public/videos/
 scripts/.fal-progress.json
 scripts/.cloudflare-playback.json
+scripts/.cloudflare-playback.json.tmp
 
 # production
 /build

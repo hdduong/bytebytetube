@@ -30,7 +30,7 @@ export function ShortsFeed({
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
-          .filter((entry) => entry.isIntersecting)
+          .filter((entry) => entry.intersectionRatio >= 0.6)
           .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
         const id = visible?.target.getAttribute("data-short-id");
         if (id) setActiveId(id);
