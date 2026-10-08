@@ -476,7 +476,7 @@ async function main() {
     const file = path.join(process.cwd(), "public", localPath.replace(/^\//, ""));
     try {
       const bytes = await readFile(file);
-      const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath));
+      const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath, bytes));
       hosted.set(localPath, url);
       return url;
     } catch (error) {

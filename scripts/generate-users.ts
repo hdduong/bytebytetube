@@ -339,7 +339,7 @@ async function createAvatar(key: string, prompt: string, slug: string) {
   await mkdir(AVATAR_DIR, { recursive: true });
   await writeFile(path.join(AVATAR_DIR, filename), Buffer.from(await file.arrayBuffer()));
   const bytes = await readFile(path.join(AVATAR_DIR, filename));
-  return uploadImage(bytes, filename, imageIdFor(`avatars/${filename}`));
+  return uploadImage(bytes, filename, imageIdFor(`avatars/${filename}`, bytes));
 }
 
 async function main() {

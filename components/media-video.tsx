@@ -2,10 +2,10 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ComponentProps } from "react";
 
-type MediaVideoProps = ComponentProps<"video"> & { src: string };
+type MediaVideoProps = ComponentProps<"video"> & { src: string; active?: boolean };
 
 export const MediaVideo = forwardRef<HTMLVideoElement, MediaVideoProps>(function MediaVideo(
-  { src, ...props },
+  { src, active = true, ...props },
   forwarded,
 ) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -14,6 +14,12 @@ export const MediaVideo = forwardRef<HTMLVideoElement, MediaVideoProps>(function
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
+    if (!active) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      return;
+    }
     const stream = src.includes(".m3u8");
     if (!stream || video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
@@ -41,7 +47,7 @@ export const MediaVideo = forwardRef<HTMLVideoElement, MediaVideoProps>(function
       video.removeAttribute("src");
       video.load();
     };
-  }, [src]);
+  }, [src, active]);
 
   return <video ref={ref} {...props} />;
 });

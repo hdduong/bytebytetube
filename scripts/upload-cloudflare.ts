@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
 import { imageIdFor, uploadImage, uploadVideo } from "../lib/cloudflare";
+import { readSavedPlayback, writeSavedPlayback } from "./saved-playback";
 
 const ROOT = process.cwd();
 
@@ -21,7 +22,12 @@ function report(error: unknown) {
 }
 
 async function main() {
-  loadEnv(await readFile(path.join(ROOT, ".env"), "utf8"));
+  try {
+    loadEnv(await readFile(path.join(ROOT, ".env"), "utf8"));
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
   const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const sql = postgres(connectionString, { prepare: false });
@@ -44,7 +50,7 @@ async function main() {
   for (const localPath of images) {
     const file = path.join(ROOT, "public", localPath.replace(/^\//, ""));
     const bytes = await readFile(file);
-    const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath));
+    const url = await uploadImage(bytes, path.basename(file), imageIdFor(localPath, bytes));
     await sql`update users set avatar = ${url} where avatar = ${localPath}`;
     await sql`update channels set avatar = ${url} where avatar = ${localPath}`;
     await sql`update channels set banner = ${url} where banner = ${localPath}`;
@@ -55,13 +61,21 @@ async function main() {
   }
 
   const videos = await sql<{ slug: string }[]>`select slug from videos where playback is null order by slug`;
+  const remembered = await readSavedPlayback();
   let videoCount = 0;
   const failed: string[] = [];
   for (const video of videos) {
     try {
-      const bytes = await readFile(path.join(ROOT, "public", "videos", `${video.slug}.mp4`));
-      const playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug);
+      let playback = remembered[video.slug];
+      if (!playback) {
+        const bytes = await readFile(path.join(ROOT, "public", "videos", `${video.slug}.mp4`));
+        playback = await uploadVideo(bytes, `${video.slug}.mp4`, video.slug);
+        remembered[video.slug] = playback;
+        await writeSavedPlayback(remembered);
+      }
       await sql`update videos set playback = ${playback} where slug = ${video.slug}`;
+      delete remembered[video.slug];
+      await writeSavedPlayback(remembered);
       videoCount += 1;
       console.log(`video ${videoCount}/${videos.length} ${video.slug}`);
     } catch (error) {

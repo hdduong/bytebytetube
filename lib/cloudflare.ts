@@ -50,9 +50,9 @@ export function checkImages() {
 type HostedImage = { id?: string; variants?: string[] };
 type StreamVideo = { uid?: string; playback?: { hls?: string } };
 
-export function imageIdFor(localPath: string) {
+export function imageIdFor(localPath: string, bytes: Uint8Array) {
   const full = localPath.replace(/^\//, "");
-  const hash = createHash("sha256").update(full).digest("hex").slice(0, 16);
+  const hash = createHash("sha256").update(full).update(bytes).digest("hex").slice(0, 16);
   const prefix = full.replace(/[^A-Za-z0-9_-]/g, "-").replace(/\.[a-z0-9]+$/i, "");
   return `cinematube-${prefix.slice(0, 80 - "cinematube-".length - 1 - hash.length)}-${hash}`;
 }

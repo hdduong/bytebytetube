@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
 import { uploadVideo } from "../lib/cloudflare";
+import { readSavedPlayback, writeSavedPlayback } from "./saved-playback";
 import { FAL_CHEAPEST_IMAGE_TO_VIDEO, falImageToVideoBody } from "./fal-model";
 const ROOT = process.cwd();
 const PROGRESS_PATH = path.join(ROOT, "scripts", ".fal-progress.json");
@@ -119,11 +120,19 @@ async function fileExists(file: string) {
 }
 
 async function publishExistingClip(sql: postgres.Sql, slug: string) {
-  const file = path.join(OUTPUT_DIR, `${slug}.mp4`);
-  if (!(await fileExists(file))) return false;
-  const bytes = await readFile(file);
-  const playback = await uploadVideo(bytes, `${slug}.mp4`, slug);
+  const remembered = await readSavedPlayback();
+  let playback = remembered[slug];
+  if (!playback) {
+    const file = path.join(OUTPUT_DIR, `${slug}.mp4`);
+    if (!(await fileExists(file))) return false;
+    const bytes = await readFile(file);
+    playback = await uploadVideo(bytes, `${slug}.mp4`, slug);
+    remembered[slug] = playback;
+    await writeSavedPlayback(remembered);
+  }
   await sql`update videos set playback = ${playback} where slug = ${slug}`;
+  delete remembered[slug];
+  await writeSavedPlayback(remembered);
   return true;
 }
 
@@ -228,8 +237,16 @@ async function main() {
         if (!url) throw new Error(`no video url for ${job.slug}`);
         const bytes = await download(url, job.slug);
         try {
-          const playback = await uploadVideo(bytes, `${job.slug}.mp4`, job.slug);
+          const remembered = await readSavedPlayback();
+          let playback = remembered[job.slug];
+          if (!playback) {
+            playback = await uploadVideo(bytes, `${job.slug}.mp4`, job.slug);
+            remembered[job.slug] = playback;
+            await writeSavedPlayback(remembered);
+          }
           await sql`update videos set playback = ${playback} where slug = ${job.slug}`;
+          delete remembered[job.slug];
+          await writeSavedPlayback(remembered);
         } catch (error) {
           progress.failed[job.slug] = redact(error);
           incomplete = true;
