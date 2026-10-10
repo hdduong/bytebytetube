@@ -19,13 +19,40 @@ const inflight = new Map<string, Promise<SearchResult>>();
 let searchesInFlight = 0;
 const waiters: Array<{ start: () => void }> = [];
 
-function assertScope(scope: SearchScope) {
-  for (const value of [scope.topic, scope.source, scope.genre, scope.channel]) {
-    if (typeof value === "string" && value.length > SCOPE_TEXT_LIMIT) throw new Error("Search scope is too large");
+function canonicalScope(input: SearchScope): SearchScope {
+  const scope: SearchScope = {};
+  if ("unlisted" in input) {
+    if (typeof input.unlisted !== "boolean") throw new Error("Search scope is too large");
+    scope.unlisted = input.unlisted;
   }
-  if (scope.ids && (scope.ids.length > SCOPE_ID_LIMIT || scope.ids.some((id) => id.length > SCOPE_TEXT_LIMIT))) {
-    throw new Error("Search scope is too large");
+  if ("topic" in input) {
+    if (input.topic !== null && (typeof input.topic !== "string" || input.topic.length > SCOPE_TEXT_LIMIT)) {
+      throw new Error("Search scope is too large");
+    }
+    scope.topic = input.topic;
   }
+  for (const key of ["source", "genre", "channel"] as const) {
+    if (!(key in input)) continue;
+    const value = input[key];
+    if (typeof value !== "string" || value.length > SCOPE_TEXT_LIMIT) throw new Error("Search scope is too large");
+    scope[key] = value;
+  }
+  for (const key of ["subscribed", "newRelease", "spoilerFree", "topRated"] as const) {
+    if (!(key in input)) continue;
+    if (typeof input[key] !== "boolean") throw new Error("Search scope is too large");
+    scope[key] = input[key];
+  }
+  if ("ids" in input) {
+    if (
+      !Array.isArray(input.ids) ||
+      input.ids.length > SCOPE_ID_LIMIT ||
+      input.ids.some((id) => typeof id !== "string" || id.length > SCOPE_TEXT_LIMIT)
+    ) {
+      throw new Error("Search scope is too large");
+    }
+    scope.ids = input.ids;
+  }
+  return scope;
 }
 
 function remember(key: string, value: Scored[]) {
@@ -106,15 +133,15 @@ export async function searchCatalog(query: string, scope: SearchScope = {}): Pro
   const text = query.trim();
   if (!text) return { status: "ok", scored: [] };
   if (text.length > QUERY_LIMIT) throw new Error("Search query is too long");
-  assertScope(scope);
-  const cacheKey = `${text.toLowerCase()}\n${JSON.stringify(scope)}`;
+  const bounded = canonicalScope(scope);
+  const cacheKey = `${text.toLowerCase()}\n${JSON.stringify(bounded)}`;
   const cached = readCache(cacheKey);
   if (cached) return { status: "ok", scored: cached };
   const pending = inflight.get(cacheKey);
   if (pending) return pending;
   const job = (async () => {
     try {
-      const value = await runSearch(text, scope);
+      const value = await runSearch(text, bounded);
       if (value.status === "ok") remember(cacheKey, value.scored);
       return value;
     } finally {

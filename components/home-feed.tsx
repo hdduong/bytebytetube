@@ -352,7 +352,7 @@ export function HomeFeed({
   }
 
   const heading = headings[chip];
-  const forYou = recommendFromTaste(movies, taste);
+  const forYou = recommendFromTaste(filtered, taste);
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
   const channelProfile = channel ? (profiles.find((profile) => profile.slug === channel) ?? null) : null;
