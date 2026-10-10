@@ -251,7 +251,11 @@ function readProfile(): TasteProfile {
 }
 
 function writeProfile(profile: TasteProfile) {
-  window.localStorage.setItem(storageKey, JSON.stringify(profile));
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(profile));
+  } catch {
+    return;
+  }
   window.dispatchEvent(new Event("cinematube-taste"));
 }
 

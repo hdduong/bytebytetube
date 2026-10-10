@@ -92,12 +92,19 @@ async function main() {
 
   let failed = false;
   for (const item of renames) {
-    const thumbnail = "/thumbnails/thumb-animation-sky.png";
     try {
-      const file = path.join(ROOT, "public", thumbnail.replace(/^\//, ""));
-      const bytes = await readFile(file);
       const { clipImageEmbedding } = await import("./clip-embedding");
+      const { generateUniqueThumbnail } = await import("./unique-thumbnails");
+      const thumbnail = await generateUniqueThumbnail(key, {
+        slug: item.slug,
+        title: item.title,
+        genre: null,
+        source: "feed",
+      });
       const embedding = await clipImageEmbedding(thumbnail);
+      const image = await fetch(thumbnail);
+      if (!image.ok) throw new Error(`thumbnail download ${image.status} for ${item.slug}`);
+      const bytes = new Uint8Array(await image.arrayBuffer());
       const rows = await db
         .update(videos)
         .set({
@@ -118,7 +125,7 @@ async function main() {
         method: "POST",
         body: JSON.stringify(
           falImageToVideoBody(
-            `data:${type};base64,${bytes.toString("base64")}`,
+            `data:${type};base64,${Buffer.from(bytes).toString("base64")}`,
             promptFor(item.title, video.genre || video.topic || "movie", video.source),
           ),
         ),

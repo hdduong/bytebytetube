@@ -10,19 +10,23 @@ export async function searchCatalog(query: string, scope: SearchScope = {}) {
   if (!embedding) return [];
   const literal = vectorLiteral(embedding);
   const rows = await db.execute<{ slug: string; distance: string | number }>(sql`
+    with candidates as materialized (
+      select slug, thumbnail_embedding
+      from videos
+      where thumbnail_embedding is not null
+        and (${scope.unlisted === undefined} or unlisted = ${scope.unlisted ?? false})
+        and (${scope.topic === undefined} or topic is not distinct from ${scope.topic ?? null})
+        and (${scope.source === undefined} or source = ${scope.source ?? ""})
+        and (${scope.genre === undefined} or genre = ${scope.genre ?? ""})
+        and (${scope.channel === undefined} or channel_name = ${scope.channel ?? ""})
+        and (${scope.subscribed === undefined} or subscribed = ${scope.subscribed ?? false})
+        and (${scope.newRelease === undefined} or new_release = ${scope.newRelease ?? false})
+        and (${scope.spoilerFree === undefined} or spoiler_free = ${scope.spoilerFree ?? false})
+        and (${scope.topRated === undefined} or top_rated = ${scope.topRated ?? false})
+        and (${scope.ids === undefined} or slug = any(${scope.ids ?? []}))
+    )
     select slug, (thumbnail_embedding <=> ${literal}::extensions.vector) as distance
-    from videos
-    where thumbnail_embedding is not null
-      and (${scope.unlisted === undefined} or unlisted = ${scope.unlisted ?? false})
-      and (${scope.topic === undefined} or topic is not distinct from ${scope.topic ?? null})
-      and (${scope.source === undefined} or source = ${scope.source ?? ""})
-      and (${scope.genre === undefined} or genre = ${scope.genre ?? ""})
-      and (${scope.channel === undefined} or channel_name = ${scope.channel ?? ""})
-      and (${scope.subscribed === undefined} or subscribed = ${scope.subscribed ?? false})
-      and (${scope.newRelease === undefined} or new_release = ${scope.newRelease ?? false})
-      and (${scope.spoilerFree === undefined} or spoiler_free = ${scope.spoilerFree ?? false})
-      and (${scope.topRated === undefined} or top_rated = ${scope.topRated ?? false})
-      and (${scope.ids === undefined} or slug = any(${scope.ids ?? []}))
+    from candidates
     order by distance
     limit 24
   `);
@@ -34,26 +38,30 @@ export async function searchCatalog(query: string, scope: SearchScope = {}) {
 
 export async function relatedByThumbnail(slug: string, filter: "all" | "same" | "channel") {
   const rows = await db.execute<{ slug: string }>(sql`
-    select other.slug
-    from videos as current
-    join videos as other
-      on other.slug <> current.slug
-     and other.thumbnail_embedding is not null
-    where current.slug = ${slug}
-      and current.thumbnail_embedding is not null
-      and (
-        (${filter} = 'all' and other.unlisted = false and other.topic is null)
-        or (${filter} = 'channel' and other.channel_name = current.channel_name and other.topic is null)
-        or (
-          ${filter} = 'same'
-          and other.unlisted = false
-          and (
-            (current.topic is not null and other.topic = current.topic)
-            or (current.topic is null and other.topic is null and other.genre is not distinct from current.genre)
+    with candidates as materialized (
+      select other.slug, other.thumbnail_embedding, current.thumbnail_embedding as target
+      from videos as current
+      join videos as other
+        on other.slug <> current.slug
+       and other.thumbnail_embedding is not null
+      where current.slug = ${slug}
+        and current.thumbnail_embedding is not null
+        and (
+          (${filter} = 'all' and other.unlisted = false and other.topic is null)
+          or (${filter} = 'channel' and other.channel_name = current.channel_name and other.topic is null)
+          or (
+            ${filter} = 'same'
+            and other.unlisted = false
+            and (
+              (current.topic is not null and other.topic = current.topic)
+              or (current.topic is null and other.topic is null and other.genre is not distinct from current.genre)
+            )
           )
         )
-      )
-    order by other.thumbnail_embedding <=> current.thumbnail_embedding
+    )
+    select slug
+    from candidates
+    order by thumbnail_embedding <=> target
     limit 12
   `);
   return [...rows].map((row) => String(row.slug));

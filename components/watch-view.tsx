@@ -78,19 +78,27 @@ export function WatchView({
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState("");
+  const watched = useRef(0);
+  const watchedId = useRef(video.id);
 
   useEffect(() => {
     recordTaste(video, "open");
   }, [video]);
 
   useEffect(() => {
+    if (watchedId.current !== video.id) {
+      watchedId.current = video.id;
+      watched.current = 0;
+    }
+  }, [video.id]);
+
+  useEffect(() => {
     if (!playing) return;
-    let pending = 0;
     const timer = window.setInterval(() => {
       if (mediaRef.current?.paused) return;
-      pending += 0.25 * speed;
-      if (pending < 5) return;
-      pending -= 5;
+      watched.current += 0.25 * speed;
+      if (watched.current < 5) return;
+      watched.current -= 5;
       recordTaste(video, "watch");
     }, 250);
     return () => window.clearInterval(timer);
