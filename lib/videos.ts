@@ -664,11 +664,3 @@ export function matchesChip(video: Video, chip: Chip) {
   }
 }
 
-export function matchesQuery(video: Video, query: string) {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return true;
-  return [video.title, video.channel, video.genre, video.topic, video.duration]
-    .join(" ")
-    .toLowerCase()
-    .includes(needle);
-}

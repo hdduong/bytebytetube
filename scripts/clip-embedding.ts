@@ -1,0 +1,99 @@
+import path from "node:path";
+import { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection, env, RawImage } from "@huggingface/transformers";
+import type postgres from "postgres";
+import { CLIP_DIMENSIONS } from "../drizzle/schema";
+
+export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
+
+const publicRoot = path.resolve(process.cwd(), "public");
+
+env.cacheDir = path.join(process.cwd(), "scripts", ".clip-cache");
+
+let processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>> | undefined;
+let visionModel: Awaited<ReturnType<typeof CLIPVisionModelWithProjection.from_pretrained>> | undefined;
+let tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>> | undefined;
+let textModel: Awaited<ReturnType<typeof CLIPTextModelWithProjection.from_pretrained>> | undefined;
+
+function fileInsidePublic(localPath: string) {
+  const file = path.resolve(publicRoot, localPath.replace(/^[/\\]+/, ""));
+  const relative = path.relative(publicRoot, file);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Refusing to read a thumbnail outside public");
+  }
+  return file;
+}
+
+function normalize(values: Float32Array) {
+  let sum = 0;
+  for (const value of values) sum += value * value;
+  const scale = Math.sqrt(sum) || 1;
+  return Array.from(values, (value) => value / scale);
+}
+
+let loadingVision: Promise<void> | undefined;
+
+async function clip() {
+  if (!processor || !visionModel) {
+    loadingVision ??= (async () => {
+      processor = await AutoProcessor.from_pretrained(CLIP_MODEL);
+      visionModel = await CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL);
+    })();
+    await loadingVision;
+  }
+  if (!processor || !visionModel) throw new Error("CLIP vision model did not load");
+  return { processor, visionModel };
+}
+
+export async function clipImageEmbedding(source: string) {
+  const image =
+    source.startsWith("https://") || source.startsWith("http://")
+      ? await RawImage.read(source)
+      : await RawImage.read(fileInsidePublic(source));
+  const { processor: imageProcessor, visionModel: model } = await clip();
+  const inputs = await imageProcessor(image);
+  const { image_embeds: embeds } = await model(inputs);
+  const values = embeds.data;
+  if (!(values instanceof Float32Array) || values.length !== CLIP_DIMENSIONS) {
+    throw new Error(`CLIP returned ${values?.length ?? 0} values for ${CLIP_MODEL}`);
+  }
+  return normalize(values);
+}
+
+function embeddingValues(data: ArrayLike<number> | undefined) {
+  if (!data || data.length < CLIP_DIMENSIONS) {
+    throw new Error(`CLIP returned ${data?.length ?? 0} values for ${CLIP_MODEL}`);
+  }
+  const values = data instanceof Float32Array ? data : Float32Array.from(data);
+  return normalize(values.length === CLIP_DIMENSIONS ? values : values.slice(0, CLIP_DIMENSIONS));
+}
+
+export async function clipTextEmbedding(query: string) {
+  const text = query.trim();
+  if (!text) return null;
+  if (!tokenizer || !textModel) {
+    tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
+    textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
+  }
+  const inputs = await tokenizer([text], { padding: true, truncation: true });
+  const { text_embeds: embeds } = await textModel(inputs);
+  return embeddingValues(embeds.data);
+}
+
+export function vectorLiteral(values: number[]) {
+  if (values.length !== CLIP_DIMENSIONS || values.some((value) => !Number.isFinite(value))) {
+    throw new Error(`CLIP embedding must be ${CLIP_DIMENSIONS} finite numbers`);
+  }
+  return `[${values.join(",")}]`;
+}
+
+export async function ensureVectorSchema(sql: postgres.Sql) {
+  await sql`set default_transaction_read_only = off`;
+  await sql.unsafe(`create extension if not exists vector with schema extensions`);
+  await sql.unsafe(`alter table videos add column if not exists thumbnail_embedding extensions.vector(512)`);
+  await sql.unsafe(
+    `comment on column videos.thumbnail_embedding is 'L2-normalized CLIP ViT-B/32 image embedding from Xenova/clip-vit-base-patch32'`,
+  );
+  await sql.unsafe(
+    `create index if not exists videos_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops)`,
+  );
+}

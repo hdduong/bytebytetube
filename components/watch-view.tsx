@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MoreIcon, ThumbUpIcon } from "@/components/icons";
 import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
+import { relatedByThumbnail } from "@/lib/search";
 import type { Video } from "@/lib/videos";
 import {
   formatCount,
-  recommendedVideos,
   watchDescription,
   watchDescriptionMore,
   watchTitle,
@@ -71,6 +71,7 @@ export function WatchView({
   const [subscribed, setSubscribed] = useState<Record<string, boolean>>({});
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
+  const [relatedIds, setRelatedIds] = useState<string[] | null>(null);
   const [sort, setSort] = useState<"newest" | "top">("newest");
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [draft, setDraft] = useState("");
@@ -111,10 +112,36 @@ export function WatchView({
     return () => window.clearInterval(timer);
   }, [playing, length, speed]);
 
+  useEffect(() => {
+    let cancel = false;
+    relatedByThumbnail(video.id)
+      .then((ids) => {
+        if (!cancel) setRelatedIds(ids);
+      })
+      .catch(() => {
+        if (!cancel) setRelatedIds([]);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [video.id]);
+
   const likeTotal = likeCount + (liked ? 1 : 0);
   const isSubscribed = Boolean(subscribed[video.channel]);
   const sameLabel = video.topic ?? video.genre ?? "Related";
-  const recommendations = recommendedVideos(video, catalog, recFilter);
+  const recommendations = useMemo(() => {
+    const order = new Map((relatedIds ?? []).map((id, index) => [id, index]));
+    return catalog
+      .filter((item) => {
+        if (!order.has(item.id) || item.id === video.id) return false;
+        if (recFilter === "channel") return item.channel === video.channel && !item.topic;
+        if (item.unlisted || item.topic) return false;
+        if (recFilter === "same") return video.topic ? item.topic === video.topic : item.genre === video.genre;
+        return true;
+      })
+      .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0))
+      .slice(0, 12);
+  }, [catalog, relatedIds, recFilter, video]);
   const orderedComments = [...comments].sort((a, b) =>
     sort === "top" ? b.likes - a.likes : 0,
   );
@@ -673,7 +700,9 @@ export function WatchView({
           ))}
         </ul>
         {recommendations.length === 0 ? (
-          <p className="py-6 text-sm text-muted">No recommendations for that filter.</p>
+          <p className="py-6 text-sm text-muted">
+            {relatedIds ? "No similar videos for that filter." : "Finding similar videos…"}
+          </p>
         ) : null}
       </aside>
     </div>

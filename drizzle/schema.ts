@@ -1,9 +1,27 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { OverlayPart } from "@/lib/videos";
 
 function when(name: string) {
   return timestamp(name, { withTimezone: true, mode: "date" });
 }
+
+export const CLIP_DIMENSIONS = 512;
+
+const vector512 = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "extensions.vector(512)";
+  },
+  toDriver(value) {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value) {
+    return String(value)
+      .replace(/^\[|\]$/g, "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number);
+  },
+});
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -67,6 +85,7 @@ export const videos = pgTable(
     likeCount: integer("like_count").notNull(),
     sortOrder: integer("sort_order").notNull(),
     playback: text("playback"),
+    thumbnailEmbedding: vector512("thumbnail_embedding"),
   },
   (table) => [index("videos_channel_id_idx").on(table.channelId), index("videos_source_idx").on(table.source)],
 );

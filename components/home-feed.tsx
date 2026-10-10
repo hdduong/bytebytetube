@@ -13,12 +13,12 @@ import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
+import { searchCatalog } from "@/lib/search";
 import type { Comment } from "@/lib/watch";
 import {
   chips,
   isGenre,
   matchesChip,
-  matchesQuery,
   type Chip,
   type ExploreTopic,
   type Genre,
@@ -87,6 +87,15 @@ function toggleId(current: string[], id: string) {
   return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
 }
 
+function applySearch<T extends { id: string }>(list: T[], query: string, rankedIds: string[] | null) {
+  if (!query.trim()) return list;
+  if (!rankedIds) return [];
+  const order = new Map(rankedIds.map((id, index) => [id, index]));
+  return list
+    .filter((item) => order.has(item.id))
+    .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+}
+
 export function HomeFeed({
   videos,
   profiles,
@@ -113,6 +122,7 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<{ query: string; ids: string[] } | null>(null);
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
@@ -158,6 +168,25 @@ export function HomeFeed({
   }
 
   useEffect(() => {
+    const needle = query.trim();
+    if (!needle) return;
+    let cancel = false;
+    const timer = window.setTimeout(() => {
+      searchCatalog(needle)
+        .then((ids) => {
+          if (!cancel) setSearchResult({ query: needle, ids });
+        })
+        .catch(() => {
+          if (!cancel) setSearchResult({ query: needle, ids: [] });
+        });
+    }, 400);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setMobileOpen(false);
@@ -167,6 +196,8 @@ export function HomeFeed({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const needle = query.trim();
+  const rankedIds = needle && searchResult?.query === needle ? searchResult.ids : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
   const movies = useMemo(
@@ -187,26 +218,23 @@ export function HomeFeed({
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
   const filtered = useMemo(
-    () => movies.filter((video) => matchesChip(video, chip) && matchesQuery(video, query)),
-    [movies, chip, query],
+    () => applySearch(movies.filter((video) => matchesChip(video, chip)), query, rankedIds),
+    [movies, chip, query, rankedIds],
   );
 
   const exploreFeed = useMemo(
-    () =>
-      videos.filter(
-        (video) => video.topic === explore && !video.unlisted && matchesQuery(video, query),
-      ),
-    [videos, explore, query],
+    () => applySearch(videos.filter((video) => video.topic === explore && !video.unlisted), query, rankedIds),
+    [videos, explore, query, rankedIds],
   );
 
   const libraryVideos = useMemo(() => {
-    const base = videos.filter((video) => !video.unlisted && matchesQuery(video, query));
-    if (library === "subscriptions") return base.filter((video) => video.subscribed);
-    if (library === "watch-later") return base.filter((video) => saved.has(video.id));
-    if (library === "liked") return base.filter((video) => liked.has(video.id));
-    if (library === "shorts") return videos.filter((video) => video.source === "short" && matchesQuery(video, query));
+    const visible = videos.filter((video) => !video.unlisted);
+    if (library === "subscriptions") return applySearch(visible.filter((video) => video.subscribed), query, rankedIds);
+    if (library === "watch-later") return applySearch(visible.filter((video) => saved.has(video.id)), query, rankedIds);
+    if (library === "liked") return applySearch(visible.filter((video) => liked.has(video.id)), query, rankedIds);
+    if (library === "shorts") return applySearch(videos.filter((video) => video.source === "short"), query, rankedIds);
     return filtered;
-  }, [videos, movies, query, library, saved, liked, filtered]);
+  }, [videos, query, rankedIds, library, saved, liked, filtered]);
 
   function goHome() {
     setLibrary("home");
@@ -397,7 +425,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} rankedIds={rankedIds} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (
@@ -437,14 +465,28 @@ export function HomeFeed({
                 {query.trim() ? `Results for “${query.trim()}”` : heading.title}
               </h1>
               <p className="mt-1 text-[16px] text-muted">
-                {query.trim() ? `${filtered.length} reviews` : heading.subtitle}
+                {query.trim()
+                  ? rankedIds
+                    ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
+                    : "Searching…"
+                  : heading.subtitle}
               </p>
             </div>
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                No reviews match that search. Try a genre, a creator, or a title.
+                {query.trim() && !rankedIds ? "Searching…" : "No videos match that search."}
               </p>
+            ) : query.trim() ? (
+              <VideoGrid
+                videos={filtered}
+                savedIds={saved}
+                likedIds={liked}
+                onOpen={(video) => openVideo(video.id)}
+                onChannel={openChannel}
+                onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
+                onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+              />
             ) : (
               <>
                 {fresh.length > 0 ? (
@@ -516,7 +558,7 @@ export function HomeFeed({
                 phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
               )}
             >
-              <p>No reviews match that search. Try a genre, a creator, or a title.</p>
+              <p>{query.trim() && !rankedIds ? "Searching…" : "No videos match that search."}</p>
             </div>
           ) : (
             <ShortsFeed

@@ -7,6 +7,8 @@ import postgres from "postgres";
 import { sql } from "drizzle-orm";
 import { channels, comments, users, videos as videoTable } from "../drizzle/schema";
 import { imageIdFor, uploadImage, uploadVideo } from "../lib/cloudflare";
+import { clipImageEmbedding, ensureVectorSchema } from "./clip-embedding";
+import { generateUniqueThumbnail } from "./unique-thumbnails";
 import { readSavedPlayback, writeSavedPlayback } from "./saved-playback";
 import { exploreTopics, genres, type ExploreTopic, type Genre } from "../lib/videos";
 import type { OverlayPart } from "../lib/videos";
@@ -268,6 +270,15 @@ const client = postgres(connectionString, { prepare: false });
 const db = drizzle(client);
 
 async function main() {
+  const sessionUrl = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
+  if (!sessionUrl) throw new Error("DATABASE_URL is not set");
+  const session = postgres(sessionUrl, { prepare: false, max: 1 });
+  try {
+    await ensureVectorSchema(session);
+  } finally {
+    await session.end();
+  }
+
   const usedSlugs = new Set<string>();
   function uniqueSlug(title: string) {
     const base = slugify(title) || "video";
@@ -503,8 +514,20 @@ async function main() {
   const remembered = await readSavedPlayback();
   const refreshed: string[] = [];
 
+  const seenThumbs = new Set<string>();
   for (const video of videoRows) {
-    video.thumbnail = await hostImage(video.thumbnail);
+    const localThumb = video.thumbnail ?? "";
+    if (process.env.FAL_KEY && localThumb && !localThumb.startsWith("https://") && seenThumbs.has(localThumb)) {
+      video.thumbnail = await generateUniqueThumbnail(process.env.FAL_KEY, {
+        slug: video.slug ?? "video",
+        title: video.title,
+        genre: video.genre ?? null,
+        source: video.source ?? "feed",
+      });
+    } else {
+      if (localThumb) seenThumbs.add(localThumb);
+      video.thumbnail = await hostImage(localThumb);
+    }
     video.avatar = await hostImage(video.avatar);
     const slug = video.slug ?? "";
     const kept = existingPlayback.get(slug);
@@ -534,6 +557,18 @@ async function main() {
       }
       throw error;
     }
+  }
+
+  const embeddings = new Map<string, number[]>();
+  for (const video of videoRows) {
+    const thumbnail = video.thumbnail ?? "";
+    if (!thumbnail) continue;
+    let embedding = embeddings.get(thumbnail);
+    if (!embedding) {
+      embedding = await clipImageEmbedding(thumbnail);
+      embeddings.set(thumbnail, embedding);
+    }
+    video.thumbnailEmbedding = embedding;
   }
 
   await db.transaction(async (tx) => {

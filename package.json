@@ -14,6 +14,7 @@
     "db:auth": "node scripts/auth-schema.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "hls.js": "^1.7.3",
