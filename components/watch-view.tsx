@@ -73,6 +73,7 @@ export function WatchView({
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
   const [relatedIds, setRelatedIds] = useState<string[] | null>(null);
+  const [relatedError, setRelatedError] = useState(false);
   const [sort, setSort] = useState<"newest" | "top">("newest");
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [draft, setDraft] = useState("");
@@ -140,13 +141,14 @@ export function WatchView({
 
   useEffect(() => {
     setRelatedIds(null);
+    setRelatedError(false);
     let cancel = false;
     relatedByThumbnail(video.id, recFilter)
       .then((ids) => {
         if (!cancel) setRelatedIds(ids);
       })
       .catch(() => {
-        if (!cancel) setRelatedIds([]);
+        if (!cancel) setRelatedError(true);
       });
     return () => {
       cancel = true;
@@ -721,7 +723,7 @@ export function WatchView({
         </ul>
         {recommendations.length === 0 ? (
           <p className="py-6 text-sm text-muted">
-            {relatedIds ? "No similar videos for that filter." : "Finding similar videos…"}
+            {relatedError ? "Recommendations are unavailable right now." : relatedIds ? "No similar videos for that filter." : "Finding similar videos…"}
           </p>
         ) : null}
       </aside>

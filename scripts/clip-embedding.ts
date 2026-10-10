@@ -8,7 +8,19 @@ export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
 
 const publicRoot = path.resolve(process.cwd(), "public");
 
-env.cacheDir = process.env.CLIP_CACHE_DIR || path.join(os.tmpdir(), "cinematube-clip");
+function configureClip() {
+  env.cacheDir = process.env.CLIP_CACHE_DIR || path.join(os.tmpdir(), "cinematube-clip");
+}
+
+function allowedImageUrl(source: string) {
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return false;
+  }
+  return url.protocol === "https:" && url.hostname === "imagedelivery.net";
+}
 
 let processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>> | undefined;
 let visionModel: Awaited<ReturnType<typeof CLIPVisionModelWithProjection.from_pretrained>> | undefined;
@@ -34,6 +46,7 @@ function normalize(values: Float32Array) {
 let loadingVision: Promise<void> | undefined;
 
 async function clip() {
+  configureClip();
   if (!processor || !visionModel) {
     loadingVision ??= (async () => {
       processor = await AutoProcessor.from_pretrained(CLIP_MODEL);
@@ -46,10 +59,10 @@ async function clip() {
 }
 
 export async function clipImageEmbedding(source: string) {
-  const image =
-    source.startsWith("https://") || source.startsWith("http://")
-      ? await RawImage.read(source)
-      : await RawImage.read(fileInsidePublic(source));
+  if (source.startsWith("https://") || source.startsWith("http://")) {
+    if (!allowedImageUrl(source)) throw new Error("Refusing to fetch a thumbnail from that host");
+  }
+  const image = source.startsWith("https://") ? await RawImage.read(source) : await RawImage.read(fileInsidePublic(source));
   const { processor: imageProcessor, visionModel: model } = await clip();
   const inputs = await imageProcessor(image);
   const { image_embeds: embeds } = await model(inputs);
@@ -71,6 +84,7 @@ function embeddingValues(data: ArrayLike<number> | undefined) {
 let loadingText: Promise<void> | undefined;
 
 async function clipText() {
+  configureClip();
   if (!tokenizer || !textModel) {
     loadingText ??= (async () => {
       tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);

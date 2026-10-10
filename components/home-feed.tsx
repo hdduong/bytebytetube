@@ -121,6 +121,7 @@ export function HomeFeed({
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
+  const [searchError, setSearchError] = useState(false);
   const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
@@ -192,7 +193,11 @@ export function HomeFeed({
 
   useEffect(() => {
     const needle = query.trim();
-    if (!needle) return;
+    if (!needle) {
+      setSearchError(false);
+      return;
+    }
+    setSearchError(false);
     let cancel = false;
     const timer = window.setTimeout(() => {
       const scope = scopeKey(searchScope);
@@ -201,7 +206,7 @@ export function HomeFeed({
           if (!cancel) setSearchResult({ query: needle, scope, scored });
         })
         .catch(() => {
-          if (!cancel) setSearchResult({ query: needle, scope, scored: [] });
+          if (!cancel) setSearchError(true);
         });
     }, 400);
     return () => {
@@ -494,16 +499,18 @@ export function HomeFeed({
               </h1>
               <p className="mt-1 text-[16px] text-muted">
                 {query.trim()
-                  ? ranked
-                    ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
-                    : "Searching…"
+                  ? searchError
+                    ? "Search is unavailable right now."
+                    : ranked
+                      ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
+                      : "Searching…"
                   : heading.subtitle}
               </p>
             </div>
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                {query.trim() && !ranked ? "Searching…" : "No videos match that search."}
+                {searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
               </p>
             ) : query.trim() ? (
               <VideoGrid
@@ -603,7 +610,7 @@ export function HomeFeed({
                 phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
               )}
             >
-              <p>{query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
+              <p>{searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
             </div>
           ) : (
             <ShortsFeed
