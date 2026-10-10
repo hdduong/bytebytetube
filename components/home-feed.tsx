@@ -598,9 +598,19 @@ export function HomeFeed({
           <section className="pt-6">
             <h1 className="text-[28px] font-bold">{explore}</h1>
             <p className="mb-6 mt-1 text-[16px] text-muted">
-              {query.trim() ? `${exploreFeed.length} videos` : exploreCopy[explore]}
+              {query.trim()
+                ? searchError
+                  ? "Search is unavailable right now."
+                  : ranked
+                    ? `${exploreFeed.length} videos`
+                    : "Searching…"
+                : exploreCopy[explore]}
             </p>
-            {exploreFeed.length === 0 ? (
+            {query.trim() && (searchError || !ranked) ? (
+              <p className="py-16 text-muted">
+                {searchError ? "Search is unavailable right now." : "Searching…"}
+              </p>
+            ) : exploreFeed.length === 0 ? (
               <p className="py-16 text-muted">No videos match that search.</p>
             ) : (
               <VideoGrid
@@ -653,13 +663,19 @@ export function HomeFeed({
                   ? "Reviews you saved to watch later"
                   : "Reviews you liked"}
             </p>
-            {libraryVideos.length === 0 ? (
+            {query.trim() && (searchError || !ranked) ? (
               <p className="py-16 text-muted">
-                {library === "watch-later"
-                  ? "Nothing saved yet. Hover a review and choose Watch later."
-                  : library === "liked"
-                    ? "No liked reviews yet. Open the menu on a review and add it here."
-                    : "No subscribed reviews match that search."}
+                {searchError ? "Search is unavailable right now." : "Searching…"}
+              </p>
+            ) : libraryVideos.length === 0 ? (
+              <p className="py-16 text-muted">
+                {query.trim()
+                  ? "No videos match that search."
+                  : library === "watch-later"
+                    ? "Nothing saved yet. Hover a review and choose Watch later."
+                    : library === "liked"
+                      ? "No liked reviews yet. Open the menu on a review and add it here."
+                      : "No subscribed reviews match that search."}
               </p>
             ) : (
               <VideoGrid
