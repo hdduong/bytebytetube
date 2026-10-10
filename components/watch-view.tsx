@@ -113,6 +113,7 @@ export function WatchView({
   }, [playing, length, speed]);
 
   useEffect(() => {
+    setRelatedIds(null);
     let cancel = false;
     relatedByThumbnail(video.id, recFilter)
       .then((ids) => {

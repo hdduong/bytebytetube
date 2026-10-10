@@ -14,7 +14,7 @@ import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
 import { searchCatalog } from "@/lib/search";
-import { withinMargin, type ScoredSlug } from "@/lib/similarity";
+import { withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
 import {
   chips,
@@ -164,12 +164,29 @@ export function HomeFeed({
     setMobileOpen(false);
   }
 
+  const searchScope = useMemo((): SearchScope => {
+    if (channel) {
+      const name = profiles.find((profile) => profile.slug === channel)?.name;
+      if (name) return { channel: name };
+    }
+    if (explore) return { topic: explore, unlisted: false };
+    if (library === "shorts") return { source: "short" };
+    if (library === "subscriptions") return { unlisted: false, subscribed: true };
+    if (library === "watch-later") return { ids: savedIds };
+    if (library === "liked") return { ids: likedIds };
+    if (isGenre(chip)) return { unlisted: false, topic: null, genre: chip };
+    if (chip === "New releases") return { unlisted: false, topic: null, newRelease: true };
+    if (chip === "Spoiler-free") return { unlisted: false, topic: null, spoilerFree: true };
+    if (chip === "Top rated") return { unlisted: false, topic: null, topRated: true };
+    return { unlisted: false, topic: null };
+  }, [channel, profiles, explore, library, chip, savedIds, likedIds]);
+
   useEffect(() => {
     const needle = query.trim();
     if (!needle) return;
     let cancel = false;
     const timer = window.setTimeout(() => {
-      searchCatalog(needle)
+      searchCatalog(needle, searchScope)
         .then((scored) => {
           if (!cancel) setSearchResult({ query: needle, scored });
         })
@@ -181,7 +198,7 @@ export function HomeFeed({
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, searchScope]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

@@ -3,8 +3,9 @@
 import { sql } from "drizzle-orm";
 import { clipTextEmbedding, vectorLiteral } from "../scripts/clip-embedding";
 import { db } from "./db";
+import type { SearchScope } from "./similarity";
 
-export async function searchCatalog(query: string) {
+export async function searchCatalog(query: string, scope: SearchScope = {}) {
   const embedding = await clipTextEmbedding(query);
   if (!embedding) return [];
   const literal = vectorLiteral(embedding);
@@ -12,8 +13,18 @@ export async function searchCatalog(query: string) {
     select slug, (thumbnail_embedding <=> ${literal}::extensions.vector) as distance
     from videos
     where thumbnail_embedding is not null
+      and (${scope.unlisted === undefined} or unlisted = ${scope.unlisted ?? false})
+      and (${scope.topic === undefined} or topic is not distinct from ${scope.topic ?? null})
+      and (${scope.source === undefined} or source = ${scope.source ?? ""})
+      and (${scope.genre === undefined} or genre = ${scope.genre ?? ""})
+      and (${scope.channel === undefined} or channel_name = ${scope.channel ?? ""})
+      and (${scope.subscribed === undefined} or subscribed = ${scope.subscribed ?? false})
+      and (${scope.newRelease === undefined} or new_release = ${scope.newRelease ?? false})
+      and (${scope.spoilerFree === undefined} or spoiler_free = ${scope.spoilerFree ?? false})
+      and (${scope.topRated === undefined} or top_rated = ${scope.topRated ?? false})
+      and (${scope.ids === undefined} or slug = any(${scope.ids ?? []}))
     order by distance
-    limit 100
+    limit 24
   `);
   return [...rows].map((row) => ({
     slug: String(row.slug),

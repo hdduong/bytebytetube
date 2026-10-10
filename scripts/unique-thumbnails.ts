@@ -124,7 +124,12 @@ export async function generateUniqueThumbnail(
 }
 
 async function main() {
-  loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+  try {
+    loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
   const key = process.env.FAL_KEY;
   const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
   if (!connectionString) throw new Error("DATABASE_URL is not set");

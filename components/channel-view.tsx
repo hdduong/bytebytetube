@@ -112,7 +112,7 @@ export function ChannelView({
     if (!needle) return;
     let cancel = false;
     const timer = window.setTimeout(() => {
-      searchCatalog(needle)
+      searchCatalog(needle, { channel: profile.name })
         .then((scored) => {
           if (!cancel) setTabResult({ query: needle, scored });
         })
@@ -124,7 +124,7 @@ export function ChannelView({
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [tabQuery]);
+  }, [tabQuery, profile.name]);
 
   const headerQuery = query.trim();
   const localQuery = tabQuery.trim();
