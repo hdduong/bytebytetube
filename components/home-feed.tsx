@@ -13,6 +13,7 @@ import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
+import { loadTaste, recommendFromTaste, type TasteProfile } from "@/lib/preferences";
 import { searchCatalog } from "@/lib/search";
 import { withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
@@ -120,6 +121,7 @@ export function HomeFeed({
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ query: string; scored: ScoredSlug[] } | null>(null);
+  const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
@@ -180,6 +182,13 @@ export function HomeFeed({
     if (chip === "Top rated") return { unlisted: false, topic: null, topRated: true };
     return { unlisted: false, topic: null };
   }, [channel, profiles, explore, library, chip, savedIds, likedIds]);
+
+  useEffect(() => {
+    const refresh = () => setTaste(loadTaste());
+    refresh();
+    window.addEventListener("cinematube-taste", refresh);
+    return () => window.removeEventListener("cinematube-taste", refresh);
+  }, []);
 
   useEffect(() => {
     const needle = query.trim();
@@ -320,6 +329,7 @@ export function HomeFeed({
   }
 
   const heading = headings[chip];
+  const forYou = recommendFromTaste(movies, taste);
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
   const channelProfile = channel ? (profiles.find((profile) => profile.slug === channel) ?? null) : null;
@@ -503,6 +513,23 @@ export function HomeFeed({
               />
             ) : (
               <>
+                {forYou.videos.length > 0 ? (
+                  <section className="mb-10">
+                    <h2 className="text-[20px] font-bold">Recommended for you</h2>
+                    <p className="mb-4 mt-1 text-[14px] text-muted">
+                      Based on {forYou.top.map((dimension) => dimension.label).join(", ")}
+                    </p>
+                    <VideoGrid
+                      videos={forYou.videos}
+                      savedIds={saved}
+                      likedIds={liked}
+                      onOpen={(video) => openVideo(video.id)}
+                      onChannel={openChannel}
+                      onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
+                      onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                    />
+                  </section>
+                ) : null}
                 {fresh.length > 0 ? (
                   <VideoGrid
                     videos={fresh}

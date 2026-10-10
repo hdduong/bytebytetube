@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
+import { TasteDebug } from "@/components/taste-debug";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
@@ -237,6 +238,7 @@ export function Header({
               Sign in
             </Link>
           )}
+          <TasteDebug />
           <PhoneToggle />
           <ThemeSwitch />
           <div className="relative">

@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MoreIcon, ThumbUpIcon } from "@/components/icons";
 import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
+import { recordTaste } from "@/lib/preferences";
 import { relatedByThumbnail } from "@/lib/search";
 import type { Video } from "@/lib/videos";
 import {
@@ -77,6 +78,23 @@ export function WatchView({
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState("");
+
+  useEffect(() => {
+    recordTaste(video, "open");
+  }, [video]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let pending = 0;
+    const timer = window.setInterval(() => {
+      if (mediaRef.current?.paused) return;
+      pending += 0.25 * speed;
+      if (pending < 5) return;
+      pending -= 5;
+      recordTaste(video, "watch");
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [playing, speed, video]);
 
   useEffect(() => {
     const media = mediaRef.current;
