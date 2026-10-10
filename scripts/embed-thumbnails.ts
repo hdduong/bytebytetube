@@ -63,16 +63,19 @@ async function main() {
         (select vector_dims(thumbnail_embedding) from videos where thumbnail_embedding is not null limit 1) as dimensions
       from videos
     `;
-    const [index] = await sql<{ name: string | null }[]>`
-      select indexrelid::regclass::text as name
+    const indexes = await sql<{ name: string }[]>`
+      select pg_class.relname as name
       from pg_index
       join pg_class on pg_class.oid = pg_index.indexrelid
-      where pg_class.relname = 'videos_thumbnail_embedding_idx' and pg_index.indisvalid
+      where pg_class.relname in ('videos_thumbnail_embedding_idx', 'videos_visible_thumbnail_embedding_idx')
+        and pg_index.indisvalid
     `;
+    const index = indexes.find((item) => item.name === "videos_thumbnail_embedding_idx");
+    const visibleIndex = indexes.find((item) => item.name === "videos_visible_thumbnail_embedding_idx");
     console.log(
-      `done embedded=${summary?.embedded ?? 0} total=${summary?.total ?? 0} dimensions=${summary?.dimensions ?? "none"} index=${index?.name ?? "missing"}`,
+      `done embedded=${summary?.embedded ?? 0} total=${summary?.total ?? 0} dimensions=${summary?.dimensions ?? "none"} index=${index?.name ?? "missing"} visible=${visibleIndex?.name ?? "missing"}`,
     );
-    if (!summary || summary.embedded !== summary.total || summary.dimensions !== 512 || !index?.name) {
+    if (!summary || summary.embedded !== summary.total || summary.dimensions !== 512 || !index?.name || !visibleIndex?.name) {
       process.exitCode = 1;
     }
   } finally {

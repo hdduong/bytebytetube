@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clearTaste, dimensions, loadTaste, rankedTaste, type TasteProfile } from "@/lib/preferences";
 
 export function TasteDebug() {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open]);
 
   useEffect(() => {
     const refresh = () => setProfile(loadTaste());
@@ -24,6 +38,7 @@ export function TasteDebug() {
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
