@@ -48,10 +48,19 @@ let loadingVision: Promise<void> | undefined;
 async function clip() {
   configureClip();
   if (!processor || !visionModel) {
-    loadingVision ??= (async () => {
-      processor = await AutoProcessor.from_pretrained(CLIP_MODEL);
-      visionModel = await CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL);
-    })();
+    if (!loadingVision) {
+      const attempt: { promise?: Promise<void> } = {};
+      attempt.promise = (async () => {
+        try {
+          processor = await AutoProcessor.from_pretrained(CLIP_MODEL);
+          visionModel = await CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL);
+        } catch (error) {
+          if (loadingVision === attempt.promise) loadingVision = undefined;
+          throw error;
+        }
+      })();
+      loadingVision = attempt.promise;
+    }
     await loadingVision;
   }
   if (!processor || !visionModel) throw new Error("CLIP vision model did not load");
@@ -86,10 +95,19 @@ let loadingText: Promise<void> | undefined;
 async function clipText() {
   configureClip();
   if (!tokenizer || !textModel) {
-    loadingText ??= (async () => {
-      tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
-      textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
-    })();
+    if (!loadingText) {
+      const attempt: { promise?: Promise<void> } = {};
+      attempt.promise = (async () => {
+        try {
+          tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
+          textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
+        } catch (error) {
+          if (loadingText === attempt.promise) loadingText = undefined;
+          throw error;
+        }
+      })();
+      loadingText = attempt.promise;
+    }
     await loadingText;
   }
   if (!tokenizer || !textModel) throw new Error("CLIP text model did not load");

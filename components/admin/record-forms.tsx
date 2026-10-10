@@ -198,7 +198,13 @@ export function VideoForm({
         </Field>
       </div>
       <Field label="Thumbnail path">
-        <input name="thumbnail" required defaultValue={video?.thumbnail ?? "/thumbnails/thumb-worth-the-hype.png"} className={control} />
+        <input
+          name="thumbnail"
+          required
+          placeholder="A picture no other video uses"
+          defaultValue={video?.thumbnail ?? ""}
+          className={control}
+        />
       </Field>
       <Field label="Avatar path">
         <input name="avatar" required defaultValue={video?.avatar ?? "/avatars/avatar-you.png"} className={control} />

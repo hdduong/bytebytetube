@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { account, channels, comments, users, videos } from "@/drizzle/schema";
@@ -227,10 +227,20 @@ function channelValues(formData: FormData, back: string) {
   return { id, slug, name, handle, avatar, banner, bannerTitle, tagline, bio, about, subscribers, videoCount, ownerId };
 }
 
+async function requireUniqueThumbnail(thumbnail: string, back: string, exceptId?: string) {
+  const match = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(exceptId ? and(eq(videos.thumbnail, thumbnail), ne(videos.id, exceptId)) : eq(videos.thumbnail, thumbnail))
+    .limit(1);
+  if (match.length > 0) bail(back, "That thumbnail is already used by another video.");
+}
+
 export async function createVideo(formData: FormData) {
   await requireAdmin();
   const parsed = videoValues(formData, "/admin/videos");
   const { id: _id, ...insertValues } = parsed;
+  await requireUniqueThumbnail(insertValues.thumbnail, "/admin/videos");
   const thumbnailEmbedding = await embeddingFor(insertValues.thumbnail, "/admin/videos");
   let id = "";
   try {
@@ -251,6 +261,7 @@ export async function updateVideo(formData: FormData) {
   const parsed = videoValues(formData, back);
   if (!parsed.id) bail("/admin/videos", "Missing video id.");
   const { id: videoId, ...rest } = parsed;
+  await requireUniqueThumbnail(rest.thumbnail, back, videoId);
   const [current] = await db
     .select({ thumbnail: videos.thumbnail, thumbnailEmbedding: videos.thumbnailEmbedding })
     .from(videos)
