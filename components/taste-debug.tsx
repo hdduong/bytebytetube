@@ -62,9 +62,9 @@ export function TasteDebug() {
                   <span>{dimension.label}</span>
                   <span className="text-muted">{dimension.score.toFixed(1)}</span>
                 </div>
-                <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/10">
+                <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-raised">
                   <span
-                    className="block h-full rounded-full bg-[#ff4e45]"
+                    className="block h-full rounded-full bg-danger"
                     style={{ width: `${Math.max(8, (dimension.score / top) * 100)}%` }}
                   />
                 </span>

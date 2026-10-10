@@ -15,7 +15,7 @@ import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
 import { loadTaste, recommendFromTaste, type TasteProfile } from "@/lib/preferences";
 import { searchCatalog } from "@/lib/search";
-import { withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
+import { scopeKey, withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
 import {
   chips,
@@ -120,7 +120,7 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState<{ query: string; scored: ScoredSlug[] } | null>(null);
+  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
   const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
@@ -195,12 +195,13 @@ export function HomeFeed({
     if (!needle) return;
     let cancel = false;
     const timer = window.setTimeout(() => {
+      const scope = scopeKey(searchScope);
       searchCatalog(needle, searchScope)
         .then((scored) => {
-          if (!cancel) setSearchResult({ query: needle, scored });
+          if (!cancel) setSearchResult({ query: needle, scope, scored });
         })
         .catch(() => {
-          if (!cancel) setSearchResult({ query: needle, scored: [] });
+          if (!cancel) setSearchResult({ query: needle, scope, scored: [] });
         });
     }, 400);
     return () => {
@@ -220,7 +221,10 @@ export function HomeFeed({
   }, []);
 
   const needle = query.trim();
-  const ranked = needle && searchResult?.query === needle ? searchResult.scored : null;
+  const ranked =
+    needle && searchResult?.query === needle && searchResult.scope === scopeKey(searchScope)
+      ? searchResult.scored
+      : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
   const movies = useMemo(

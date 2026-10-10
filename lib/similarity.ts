@@ -2,6 +2,10 @@ export const relevanceMargin = 0.015;
 
 export type ScoredSlug = { slug: string; distance: number };
 
+export function scopeKey(scope: SearchScope) {
+  return JSON.stringify(scope);
+}
+
 export type SearchScope = {
   unlisted?: boolean;
   topic?: string | null;
