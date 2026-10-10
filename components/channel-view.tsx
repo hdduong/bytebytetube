@@ -86,11 +86,13 @@ export function ChannelView({
   profile,
   query,
   ranked,
+  searchFailed = false,
   onOpen,
 }: {
   profile: ChannelProfile;
   query: string;
   ranked: ScoredSlug[] | null;
+  searchFailed?: boolean;
   onOpen: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Home");
@@ -139,7 +141,7 @@ export function ChannelView({
   const headerMatched = headerQuery ? withinMargin(channelItems, ranked) : null;
   const localMatched = localQuery ? withinMargin(channelItems, tabRank) : null;
   const rank = byRank((localMatched ?? headerMatched)?.map((video) => video.id) ?? null);
-  const waiting = (headerQuery && !ranked) || (localQuery && !tabRank);
+  const waiting = !searchFailed && ((headerQuery && !ranked) || (localQuery && !tabRank));
 
   function matches(video: ChannelVideo) {
     if (waiting) return false;
@@ -274,7 +276,7 @@ export function ChannelView({
         <section>
           <h2 className="mb-3 text-[20px] font-bold">Videos</h2>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">{searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
+            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
               {videos.map((video) => (
@@ -327,7 +329,7 @@ export function ChannelView({
             })}
           </div>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">{searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
+            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
@@ -346,7 +348,7 @@ export function ChannelView({
       {tab === "Shorts" ? (
         shorts.length === 0 ? (
           <p className="py-16 text-muted">
-            {searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
+            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
@@ -360,7 +362,7 @@ export function ChannelView({
       {tab === "Live" ? (
         live.length === 0 ? (
           <p className="py-16 text-muted">
-            {searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
+            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">

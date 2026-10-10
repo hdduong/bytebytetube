@@ -458,7 +458,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} ranked={ranked} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={searchError} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (

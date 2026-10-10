@@ -96,8 +96,18 @@ export function WatchView({
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
-      if (mediaRef.current?.paused) return;
-      watched.current += 0.25 * speed;
+      const media = mediaRef.current;
+      if (!media || media.paused || media.readyState < 2) return;
+      const now = media.currentTime;
+      if (watched.current < 0) {
+        watched.current = 0;
+      }
+      const previous = media.dataset.tasteTime ? Number(media.dataset.tasteTime) : now;
+      let delta = now - previous;
+      if (delta < 0) delta += Number.isFinite(media.duration) ? media.duration : 0;
+      media.dataset.tasteTime = String(now);
+      if (delta <= 0 || delta > 1) return;
+      watched.current += delta;
       if (watched.current < 5) return;
       watched.current -= 5;
       recordTaste(video, "watch");
