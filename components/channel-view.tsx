@@ -118,18 +118,32 @@ export function ChannelView({
     }
     setSearchError(false);
     let cancel = false;
-    const timer = window.setTimeout(() => {
+    let retryTimer = 0;
+    let attempt = 0;
+    const run = () => {
       searchCatalog(needle, { channel: profile.name })
-        .then((scored) => {
-          if (!cancel) setTabResult({ query: needle, channel: profile.name, scored });
+        .then((result) => {
+          if (cancel) return;
+          if (result.status === "busy" && attempt < 3) {
+            attempt += 1;
+            retryTimer = window.setTimeout(run, 400 * attempt);
+            return;
+          }
+          if (result.status === "busy") {
+            setSearchError(true);
+            return;
+          }
+          setTabResult({ query: needle, channel: profile.name, scored: result.scored });
         })
         .catch(() => {
           if (!cancel) setSearchError(true);
         });
-    }, 400);
+    };
+    const timer = window.setTimeout(run, 400);
     return () => {
       cancel = true;
       window.clearTimeout(timer);
+      window.clearTimeout(retryTimer);
     };
   }, [tabQuery, profile.name]);
 

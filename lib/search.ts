@@ -7,12 +7,28 @@ import type { SearchScope } from "./similarity";
 
 const CACHE_LIMIT = 64;
 const CACHE_TTL_MS = 60_000;
-const searchCache = new Map<string, { at: number; value: { slug: string; distance: number }[] }>();
-const inflight = new Map<string, Promise<{ slug: string; distance: number }[]>>();
+const QUERY_LIMIT = 200;
+const SCOPE_TEXT_LIMIT = 120;
+const SCOPE_ID_LIMIT = 200;
+const QUEUE_LIMIT = 8;
+const QUEUE_WAIT_MS = 5_000;
+type Scored = { slug: string; distance: number };
+export type SearchResult = { status: "ok"; scored: Scored[] } | { status: "busy" };
+const searchCache = new Map<string, { at: number; value: Scored[] }>();
+const inflight = new Map<string, Promise<SearchResult>>();
 let searchesInFlight = 0;
-const waiters: Array<() => void> = [];
+const waiters: Array<{ start: () => void }> = [];
 
-function remember(key: string, value: { slug: string; distance: number }[]) {
+function assertScope(scope: SearchScope) {
+  for (const value of [scope.topic, scope.source, scope.genre, scope.channel]) {
+    if (typeof value === "string" && value.length > SCOPE_TEXT_LIMIT) throw new Error("Search scope is too large");
+  }
+  if (scope.ids && (scope.ids.length > SCOPE_ID_LIMIT || scope.ids.some((id) => id.length > SCOPE_TEXT_LIMIT))) {
+    throw new Error("Search scope is too large");
+  }
+}
+
+function remember(key: string, value: Scored[]) {
   const now = Date.now();
   for (const [cachedKey, entry] of searchCache) {
     if (now - entry.at >= CACHE_TTL_MS) searchCache.delete(cachedKey);
@@ -40,20 +56,31 @@ function readCache(key: string) {
 function acquire() {
   if (searchesInFlight < 2) {
     searchesInFlight += 1;
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
-  return new Promise<void>((resolve) => {
-    waiters.push(() => {
-      searchesInFlight += 1;
-      resolve();
-    });
+  if (waiters.length >= QUEUE_LIMIT) return Promise.resolve(false);
+  return new Promise<boolean>((resolve) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const waiter = {
+      start() {
+        clearTimeout(timer);
+        searchesInFlight += 1;
+        resolve(true);
+      },
+    };
+    timer = setTimeout(() => {
+      const index = waiters.indexOf(waiter);
+      if (index >= 0) waiters.splice(index, 1);
+      resolve(false);
+    }, QUEUE_WAIT_MS);
+    waiters.push(waiter);
   });
 }
 
 function release() {
   searchesInFlight -= 1;
   const next = waiters.shift();
-  if (next) next();
+  if (next) next.start();
 }
 
 function isDefaultCatalog(scope: SearchScope) {
@@ -75,16 +102,20 @@ function hasFilter(scope: SearchScope) {
   return Object.values(scope).some((value) => value !== undefined);
 }
 
-export async function searchCatalog(query: string, scope: SearchScope = {}) {
-  const cacheKey = `${query.trim().toLowerCase()}\n${JSON.stringify(scope)}`;
+export async function searchCatalog(query: string, scope: SearchScope = {}): Promise<SearchResult> {
+  const text = query.trim();
+  if (!text) return { status: "ok", scored: [] };
+  if (text.length > QUERY_LIMIT) throw new Error("Search query is too long");
+  assertScope(scope);
+  const cacheKey = `${text.toLowerCase()}\n${JSON.stringify(scope)}`;
   const cached = readCache(cacheKey);
-  if (cached) return cached;
+  if (cached) return { status: "ok", scored: cached };
   const pending = inflight.get(cacheKey);
   if (pending) return pending;
   const job = (async () => {
     try {
-      const value = await runSearch(query, scope);
-      remember(cacheKey, value);
+      const value = await runSearch(text, scope);
+      if (value.status === "ok") remember(cacheKey, value.scored);
       return value;
     } finally {
       inflight.delete(cacheKey);
@@ -94,11 +125,12 @@ export async function searchCatalog(query: string, scope: SearchScope = {}) {
   return job;
 }
 
-async function runSearch(query: string, scope: SearchScope) {
-  await acquire();
+async function runSearch(query: string, scope: SearchScope): Promise<SearchResult> {
+  const ready = await acquire();
+  if (!ready) return { status: "busy" };
   try {
     const embedding = await clipTextEmbedding(query);
-    if (!embedding) return [];
+    if (!embedding) return { status: "ok", scored: [] };
     const literal = vectorLiteral(embedding);
     const rows = isDefaultCatalog(scope)
       ? await db.execute<{ slug: string; distance: string | number }>(sql`
@@ -139,10 +171,13 @@ async function runSearch(query: string, scope: SearchScope) {
             order by thumbnail_embedding <=> ${literal}::extensions.vector
             limit 24
           `);
-    return [...rows].map((row) => ({
-      slug: String(row.slug),
-      distance: Number(row.distance),
-    }));
+    return {
+      status: "ok",
+      scored: [...rows].map((row) => ({
+        slug: String(row.slug),
+        distance: Number(row.distance),
+      })),
+    };
   } finally {
     release();
   }
