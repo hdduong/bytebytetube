@@ -175,8 +175,8 @@ export function HomeFeed({
     if (explore) return { topic: explore, unlisted: false };
     if (library === "shorts") return { source: "short" };
     if (library === "subscriptions") return { unlisted: false, subscribed: true };
-    if (library === "watch-later") return { ids: savedIds };
-    if (library === "liked") return { ids: likedIds };
+    if (library === "watch-later") return { ids: savedIds, unlisted: false };
+    if (library === "liked") return { ids: likedIds, unlisted: false };
     if (isGenre(chip)) return { unlisted: false, topic: null, genre: chip };
     if (chip === "New releases") return { unlisted: false, topic: null, newRelease: true };
     if (chip === "Spoiler-free") return { unlisted: false, topic: null, spoilerFree: true };

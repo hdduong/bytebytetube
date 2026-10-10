@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { clearTaste, dimensions, loadTaste, rankedTaste, type TasteProfile } from "@/lib/preferences";
 
-export function TasteDebug() {
+export function TasteDebug({ inline = false }: { inline?: boolean }) {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -36,18 +36,24 @@ export function TasteDebug() {
   const top = ranked[0]?.score ?? 1;
 
   return (
-    <div className="relative">
+    <div className={inline ? undefined : "relative hidden palm:block"}>
       <button
         ref={buttonRef}
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash"
+        className={inline ? "text-sm font-medium hover:text-ink" : "flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash"}
       >
         Taste
       </button>
       {open ? (
-        <div className="absolute right-0 top-12 z-50 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-line bg-menu p-4 text-sm shadow-2xl">
+        <div
+          className={
+            inline
+              ? "mt-3 max-h-64 overflow-y-auto text-sm"
+              : "absolute right-0 top-12 z-50 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-line bg-menu p-4 text-sm shadow-2xl"
+          }
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-medium">What we know about you</p>

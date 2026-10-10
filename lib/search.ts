@@ -81,12 +81,16 @@ export async function searchCatalog(query: string, scope: SearchScope = {}) {
   if (cached) return cached;
   const pending = inflight.get(cacheKey);
   if (pending) return pending;
-  const job = runSearch(query, scope).then((value) => {
-    remember(cacheKey, value);
-    return value;
-  });
+  const job = (async () => {
+    try {
+      const value = await runSearch(query, scope);
+      remember(cacheKey, value);
+      return value;
+    } finally {
+      inflight.delete(cacheKey);
+    }
+  })();
   inflight.set(cacheKey, job);
-  void job.finally(() => inflight.delete(cacheKey));
   return job;
 }
 

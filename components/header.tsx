@@ -255,9 +255,12 @@ export function Header({
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ff0000]" />
             </button>
             {panel === "notifications" ? (
-              <div className="absolute right-0 top-12 w-72 rounded-xl border border-line bg-menu p-4 text-sm shadow-2xl">
+              <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-line bg-menu p-4 text-sm shadow-2xl">
                 <p className="font-medium">Notifications</p>
                 <p className="mt-2 text-muted">You’re caught up. No new reviews.</p>
+                <div className="mt-3 border-t border-line pt-3 palm:hidden">
+                  <TasteDebug inline />
+                </div>
               </div>
             ) : null}
           </div>
