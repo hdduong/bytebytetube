@@ -12,6 +12,15 @@ npm run db:auth
 
 That applies `scripts/auth-schema.mjs` with Node. It is safe to run again. Set `DATABASE_URL` and `BETTER_AUTH_SECRET` first. See `.env.example`.
 
+After an upgrade that adds thumbnail search, run:
+
+```bash
+npm run db:upgrade
+npm run clip:setup
+```
+
+`db:upgrade` creates the pgvector column and index, then fills a CLIP embedding for every existing thumbnail. `clip:setup` downloads the CLIP model into a writable cache before the server handles a search. The app also loads that model when the Node server starts.
+
 ## Getting Started
 
 First, run the development server:

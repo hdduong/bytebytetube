@@ -517,7 +517,10 @@ async function main() {
   const seenThumbs = new Set<string>();
   for (const video of videoRows) {
     const localThumb = video.thumbnail ?? "";
-    if (process.env.FAL_KEY && localThumb && !localThumb.startsWith("https://") && seenThumbs.has(localThumb)) {
+    if (localThumb && !localThumb.startsWith("https://") && seenThumbs.has(localThumb)) {
+      if (!process.env.FAL_KEY) {
+        throw new Error(`FAL_KEY is required so ${video.slug ?? "a video"} does not reuse ${localThumb}`);
+      }
       video.thumbnail = await generateUniqueThumbnail(process.env.FAL_KEY, {
         slug: video.slug ?? "video",
         title: video.title,

@@ -157,9 +157,25 @@ async function main() {
     const jobs: { slug: string; statusUrl: string; responseUrl: string }[] = [];
 
     for (const topic of topics) {
-      const existing = await sql<{ slug: string }[]>`select slug from videos where slug = ${topic.slug}`;
-      if (existing.length > 0) {
+      const existing = await sql<{ slug: string; playback: string | null; thumbnail: string }[]>`
+        select slug, playback, thumbnail from videos where slug = ${topic.slug}
+      `;
+      if (existing[0]?.playback) {
         console.log(`exists ${topic.slug}`);
+        continue;
+      }
+      if (existing[0]) {
+        const queued = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
+          method: "POST",
+          body: JSON.stringify(
+            falImageToVideoBody(
+              existing[0].thumbnail,
+              `Cinematic 5-second clip. ${topic.motion} No text, logos, or famous characters.`,
+            ),
+          ),
+        });
+        jobs.push({ slug: topic.slug, statusUrl: queued.status_url, responseUrl: queued.response_url });
+        console.log(`resume ${topic.slug}`);
         continue;
       }
       const channel = channelByName.get(topic.channel);
@@ -209,6 +225,7 @@ async function main() {
     }
 
     const pending = new Map(jobs.map((job) => [job.slug, job]));
+    const failed = new Set<string>();
     const started = Date.now();
     while (pending.size > 0 && Date.now() - started < 12 * 60 * 1000) {
       for (const job of [...pending.values()]) {
@@ -216,6 +233,7 @@ async function main() {
         if (status.status !== "COMPLETED") {
           if (status.status === "FAILED" || status.status === "ERROR") {
             console.error(`clip failed ${job.slug}`);
+            failed.add(job.slug);
             pending.delete(job.slug);
           }
           continue;
@@ -233,8 +251,11 @@ async function main() {
       }
       if (pending.size > 0) await new Promise((resolve) => setTimeout(resolve, 8000));
     }
-    if (pending.size > 0) console.error(`playback still waiting: ${[...pending.keys()].join(", ")}`);
-    console.log("done");
+    if (pending.size > 0 || failed.size > 0) {
+      console.error(`playback unfinished: ${[...pending.keys(), ...failed].join(", ")}`);
+      process.exitCode = 1;
+    }
+    console.log(process.exitCode ? "finished with playback failures" : "done");
   } finally {
     await sql.end();
   }

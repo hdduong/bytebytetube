@@ -7,6 +7,7 @@ import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
 import type { OverlayPart } from "@/lib/videos";
+import { clipImageEmbedding } from "../scripts/clip-embedding";
 
 const sources = ["feed", "explore", "channel", "short"] as const;
 const aligns = ["left", "center", "right"] as const;
@@ -63,6 +64,14 @@ function dbMessage(error: unknown) {
 
 function bail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+async function embeddingFor(thumbnail: string, back: string) {
+  try {
+    return await clipImageEmbedding(thumbnail);
+  } catch {
+    bail(back, "Could not embed that thumbnail.");
+  }
 }
 
 function refresh() {
@@ -222,9 +231,10 @@ export async function createVideo(formData: FormData) {
   await requireAdmin();
   const parsed = videoValues(formData, "/admin/videos");
   const { id: _id, ...insertValues } = parsed;
+  const thumbnailEmbedding = await embeddingFor(insertValues.thumbnail, "/admin/videos");
   let id = "";
   try {
-    const [created] = await db.insert(videos).values(insertValues).returning({ id: videos.id });
+    const [created] = await db.insert(videos).values({ ...insertValues, thumbnailEmbedding }).returning({ id: videos.id });
     id = created?.id ?? "";
   } catch (error) {
     bail("/admin/videos", dbMessage(error));
@@ -241,8 +251,16 @@ export async function updateVideo(formData: FormData) {
   const parsed = videoValues(formData, back);
   if (!parsed.id) bail("/admin/videos", "Missing video id.");
   const { id: videoId, ...rest } = parsed;
+  const [current] = await db
+    .select({ thumbnail: videos.thumbnail, thumbnailEmbedding: videos.thumbnailEmbedding })
+    .from(videos)
+    .where(eq(videos.id, videoId));
+  const thumbnailEmbedding =
+    current && current.thumbnail === rest.thumbnail && current.thumbnailEmbedding
+      ? current.thumbnailEmbedding
+      : await embeddingFor(rest.thumbnail, back);
   try {
-    await db.update(videos).set(rest).where(eq(videos.id, videoId));
+    await db.update(videos).set({ ...rest, thumbnailEmbedding }).where(eq(videos.id, videoId));
   } catch (error) {
     bail(back, dbMessage(error));
   }

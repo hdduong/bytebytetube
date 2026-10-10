@@ -11,7 +11,10 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "db:auth": "node scripts/auth-schema.mjs"
+    "db:auth": "node scripts/auth-schema.mjs",
+    "db:embeddings": "npx tsx scripts/embed-thumbnails.ts",
+    "db:upgrade": "node scripts/auth-schema.mjs && npx tsx scripts/embed-thumbnails.ts",
+    "clip:setup": "npx tsx scripts/prefetch-clip.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",

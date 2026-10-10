@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection, env, RawImage } from "@huggingface/transformers";
 import type postgres from "postgres";
@@ -7,7 +8,7 @@ export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
 
 const publicRoot = path.resolve(process.cwd(), "public");
 
-env.cacheDir = path.join(process.cwd(), "scripts", ".clip-cache");
+env.cacheDir = process.env.CLIP_CACHE_DIR || path.join(os.tmpdir(), "cinematube-clip");
 
 let processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>> | undefined;
 let visionModel: Awaited<ReturnType<typeof CLIPVisionModelWithProjection.from_pretrained>> | undefined;
@@ -67,15 +68,30 @@ function embeddingValues(data: ArrayLike<number> | undefined) {
   return normalize(values.length === CLIP_DIMENSIONS ? values : values.slice(0, CLIP_DIMENSIONS));
 }
 
+let loadingText: Promise<void> | undefined;
+
+async function clipText() {
+  if (!tokenizer || !textModel) {
+    loadingText ??= (async () => {
+      tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
+      textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
+    })();
+    await loadingText;
+  }
+  if (!tokenizer || !textModel) throw new Error("CLIP text model did not load");
+  return { tokenizer, textModel };
+}
+
+export async function preloadClip() {
+  await Promise.all([clip(), clipText()]);
+}
+
 export async function clipTextEmbedding(query: string) {
   const text = query.trim();
   if (!text) return null;
-  if (!tokenizer || !textModel) {
-    tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
-    textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
-  }
-  const inputs = await tokenizer([text], { padding: true, truncation: true });
-  const { text_embeds: embeds } = await textModel(inputs);
+  const { tokenizer: tokens, textModel: model } = await clipText();
+  const inputs = await tokens([text], { padding: true, truncation: true });
+  const { text_embeds: embeds } = await model(inputs);
   return embeddingValues(embeds.data);
 }
 

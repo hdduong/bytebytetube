@@ -15,6 +15,7 @@ export async function searchCatalog(query: string) {
     from videos
     where thumbnail_embedding is not null
     order by distance
+    limit 48
   `);
   const ranked = [...rows].map((row) => ({
     slug: String(row.slug),
@@ -35,6 +36,7 @@ export async function relatedByThumbnail(slug: string) {
     where current.slug = ${slug}
       and current.thumbnail_embedding is not null
     order by other.thumbnail_embedding <=> current.thumbnail_embedding
+    limit 80
   `);
   return [...rows].map((row) => String(row.slug));
 }

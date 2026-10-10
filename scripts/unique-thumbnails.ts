@@ -132,12 +132,13 @@ async function main() {
   const sql = postgres(connectionString, { prepare: false, max: 1 });
   try {
     await sql`set default_transaction_read_only = off`;
-    const rows = await sql<{ slug: string; title: string; genre: string | null; source: string; thumbnail: string }[]>`
+    type ThumbVideo = { slug: string; title: string; genre: string | null; source: string; thumbnail: string };
+    const rows = await sql<ThumbVideo[]>`
       select slug, title, genre, source, thumbnail
       from videos
       order by thumbnail, slug
     `;
-    const groups = new Map<string, typeof rows>();
+    const groups = new Map<string, ThumbVideo[]>();
     for (const row of rows) {
       const group = groups.get(row.thumbnail) ?? [];
       group.push(row);
