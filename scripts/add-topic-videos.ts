@@ -185,31 +185,33 @@ async function main() {
       const thumbnail = await uploadImage(bytes, `${topic.slug}.jpg`, imageIdFor(`thumbnails/${topic.slug}.jpg`, bytes));
       const embedding = vectorLiteral(await clipImageEmbedding(thumbnail));
       const id = randomUUID();
-      await sql`
-        insert into videos (
-          id, slug, channel_id, channel_name, title, genre, topic, live, duration, views, view_count,
-          uploaded, recency, thumbnail, avatar, overlay, align, shelf, new_release, spoiler_free,
-          top_rated, subscribed, unlisted, source, like_count, sort_order, thumbnail_embedding
-        ) values (
-          ${id}, ${topic.slug}, ${channel.id}, ${channel.name}, ${topic.title}, ${topic.genre}, null, false,
-          ${topic.duration}, ${topic.views}, ${topic.viewCount}, ${topic.uploaded}, ${sortOrder},
-          ${thumbnail}, ${channel.avatar}, ${sql.json(overlay(topic.title))}, ${topic.align}, 'fresh',
-          true, true, false, true, false, 'feed', ${400 + sortOrder}, ${sortOrder},
-          ${embedding}::extensions.vector
-        )
-      `;
-      for (const [index, commenter] of commenters.entries()) {
-        await sql`
-          insert into comments (id, video_id, user_id, body, posted, likes, sort_order)
-          values (
-            ${randomUUID()}, ${id}, ${commenter.id},
-            ${index === 0 ? `This is the ${channel.name} video I send when someone asks where to start.` : "Rewound the example twice. That is a good sign."},
-            ${index === 0 ? "1 day ago" : `${index + 1} days ago`},
-            ${20 + index * 7}, ${index}
+      await sql.begin(async (tx) => {
+        await tx`
+          insert into videos (
+            id, slug, channel_id, channel_name, title, genre, topic, live, duration, views, view_count,
+            uploaded, recency, thumbnail, avatar, overlay, align, shelf, new_release, spoiler_free,
+            top_rated, subscribed, unlisted, source, like_count, sort_order, thumbnail_embedding
+          ) values (
+            ${id}, ${topic.slug}, ${channel.id}, ${channel.name}, ${topic.title}, ${topic.genre}, null, false,
+            ${topic.duration}, ${topic.views}, ${topic.viewCount}, ${topic.uploaded}, ${sortOrder},
+            ${thumbnail}, ${channel.avatar}, ${tx.json(overlay(topic.title))}, ${topic.align}, 'fresh',
+            true, true, false, true, false, 'feed', ${400 + sortOrder}, ${sortOrder},
+            ${embedding}::extensions.vector
           )
         `;
-      }
-      await sql`update channels set video_count = video_count + 1 where id = ${channel.id}`;
+        for (const [index, commenter] of commenters.entries()) {
+          await tx`
+            insert into comments (id, video_id, user_id, body, posted, likes, sort_order)
+            values (
+              ${randomUUID()}, ${id}, ${commenter.id},
+              ${index === 0 ? `This is the ${channel.name} video I send when someone asks where to start.` : "Rewound the example twice. That is a good sign."},
+              ${index === 0 ? "1 day ago" : `${index + 1} days ago`},
+              ${20 + index * 7}, ${index}
+            )
+          `;
+        }
+        await tx`update channels set video_count = video_count + 1 where id = ${channel.id}`;
+      });
       const queued = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
         method: "POST",
         body: JSON.stringify(

@@ -90,29 +90,29 @@ async function main() {
     .where(or(sql`body ilike '%punch with a plot%'`, sql`body ilike '%sky is doing too much%'`));
   console.log(`comments mentioning old titles=${commentHits[0]?.count ?? 0}`);
 
+  let failed = false;
   for (const item of renames) {
-    const rows = await db
-      .update(videos)
-      .set({
-        title: item.title,
-        slug: item.slug,
-        overlay: item.overlay as OverlayPart[][],
-        thumbnail: "/thumbnails/thumb-animation-sky.png",
-        thumbnailEmbedding: null,
-        duration: "0:05",
-      })
-      .where(or(...[...item.fromSlugs, item.slug].map((slug) => eq(videos.slug, slug))))
-      .returning({ genre: videos.genre, topic: videos.topic, source: videos.source, thumbnail: videos.thumbnail });
-    const video = rows[0];
-    if (!video) throw new Error(`missing video ${item.fromSlugs[0]}`);
-    console.log(`renamed ${item.fromSlugs[0]} -> ${item.slug} thumb=${video.thumbnail} genre=${video.genre}`);
-
+    const thumbnail = "/thumbnails/thumb-animation-sky.png";
     try {
-      const file = path.join(ROOT, "public", video.thumbnail.replace(/^\//, ""));
+      const file = path.join(ROOT, "public", thumbnail.replace(/^\//, ""));
       const bytes = await readFile(file);
       const { clipImageEmbedding } = await import("./clip-embedding");
-      const embedding = await clipImageEmbedding(video.thumbnail);
-      await db.update(videos).set({ thumbnailEmbedding: embedding }).where(eq(videos.slug, item.slug));
+      const embedding = await clipImageEmbedding(thumbnail);
+      const rows = await db
+        .update(videos)
+        .set({
+          title: item.title,
+          slug: item.slug,
+          overlay: item.overlay as OverlayPart[][],
+          thumbnail,
+          thumbnailEmbedding: embedding,
+          duration: "0:05",
+        })
+        .where(or(...[...item.fromSlugs, item.slug].map((slug) => eq(videos.slug, slug))))
+        .returning({ genre: videos.genre, topic: videos.topic, source: videos.source, thumbnail: videos.thumbnail });
+      const video = rows[0];
+      if (!video) throw new Error(`missing video ${item.fromSlugs[0]}`);
+      console.log(`renamed ${item.fromSlugs[0]} -> ${item.slug} thumb=${video.thumbnail} genre=${video.genre}`);
       const type = video.thumbnail.endsWith(".png") ? "image/png" : "image/jpeg";
       const queued = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
         method: "POST",
@@ -141,9 +141,11 @@ async function main() {
       await writeFile(path.join(ROOT, "public", "videos", `${item.slug}.mp4`), Buffer.from(await response.arrayBuffer()));
       console.log(`saved ${item.slug}`);
     } catch (error) {
+      failed = true;
       console.error(`${item.slug}: ${redact(error)}`);
     }
   }
+  if (failed) process.exitCode = 1;
 
   await client.end();
   console.log("renames finished");
