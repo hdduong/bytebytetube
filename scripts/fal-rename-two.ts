@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq, or, sql } from "drizzle-orm";
+import type { OverlayPart } from "../lib/videos";
 import { FAL_CHEAPEST_IMAGE_TO_VIDEO, falImageToVideoBody } from "./fal-model";
 const ROOT = process.cwd();
 
@@ -95,8 +96,9 @@ async function main() {
       .set({
         title: item.title,
         slug: item.slug,
-        overlay: item.overlay,
+        overlay: item.overlay as OverlayPart[][],
         thumbnail: "/thumbnails/thumb-animation-sky.png",
+        thumbnailEmbedding: null,
         duration: "0:05",
       })
       .where(or(...[...item.fromSlugs, item.slug].map((slug) => eq(videos.slug, slug))))
@@ -108,6 +110,9 @@ async function main() {
     try {
       const file = path.join(ROOT, "public", video.thumbnail.replace(/^\//, ""));
       const bytes = await readFile(file);
+      const { clipImageEmbedding } = await import("./clip-embedding");
+      const embedding = await clipImageEmbedding(video.thumbnail);
+      await db.update(videos).set({ thumbnailEmbedding: embedding }).where(eq(videos.slug, item.slug));
       const type = video.thumbnail.endsWith(".png") ? "image/png" : "image/jpeg";
       const queued = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
         method: "POST",

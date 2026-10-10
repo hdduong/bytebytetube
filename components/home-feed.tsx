@@ -14,6 +14,7 @@ import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
 import { searchCatalog } from "@/lib/search";
+import { withinMargin, type ScoredSlug } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
 import {
   chips,
@@ -87,13 +88,9 @@ function toggleId(current: string[], id: string) {
   return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
 }
 
-function applySearch<T extends { id: string }>(list: T[], query: string, rankedIds: string[] | null) {
+function applySearch<T extends { id: string }>(list: T[], query: string, scored: ScoredSlug[] | null) {
   if (!query.trim()) return list;
-  if (!rankedIds) return [];
-  const order = new Map(rankedIds.map((id, index) => [id, index]));
-  return list
-    .filter((item) => order.has(item.id))
-    .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+  return withinMargin(list, scored);
 }
 
 export function HomeFeed({
@@ -122,7 +119,7 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState<{ query: string; ids: string[] } | null>(null);
+  const [searchResult, setSearchResult] = useState<{ query: string; scored: ScoredSlug[] } | null>(null);
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
@@ -173,11 +170,11 @@ export function HomeFeed({
     let cancel = false;
     const timer = window.setTimeout(() => {
       searchCatalog(needle)
-        .then((ids) => {
-          if (!cancel) setSearchResult({ query: needle, ids });
+        .then((scored) => {
+          if (!cancel) setSearchResult({ query: needle, scored });
         })
         .catch(() => {
-          if (!cancel) setSearchResult({ query: needle, ids: [] });
+          if (!cancel) setSearchResult({ query: needle, scored: [] });
         });
     }, 400);
     return () => {
@@ -197,7 +194,7 @@ export function HomeFeed({
   }, []);
 
   const needle = query.trim();
-  const rankedIds = needle && searchResult?.query === needle ? searchResult.ids : null;
+  const ranked = needle && searchResult?.query === needle ? searchResult.scored : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
   const movies = useMemo(
@@ -218,23 +215,23 @@ export function HomeFeed({
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
   const filtered = useMemo(
-    () => applySearch(movies.filter((video) => matchesChip(video, chip)), query, rankedIds),
-    [movies, chip, query, rankedIds],
+    () => applySearch(movies.filter((video) => matchesChip(video, chip)), query, ranked),
+    [movies, chip, query, ranked],
   );
 
   const exploreFeed = useMemo(
-    () => applySearch(videos.filter((video) => video.topic === explore && !video.unlisted), query, rankedIds),
-    [videos, explore, query, rankedIds],
+    () => applySearch(videos.filter((video) => video.topic === explore && !video.unlisted), query, ranked),
+    [videos, explore, query, ranked],
   );
 
   const libraryVideos = useMemo(() => {
     const visible = videos.filter((video) => !video.unlisted);
-    if (library === "subscriptions") return applySearch(visible.filter((video) => video.subscribed), query, rankedIds);
-    if (library === "watch-later") return applySearch(visible.filter((video) => saved.has(video.id)), query, rankedIds);
-    if (library === "liked") return applySearch(visible.filter((video) => liked.has(video.id)), query, rankedIds);
-    if (library === "shorts") return applySearch(videos.filter((video) => video.source === "short"), query, rankedIds);
+    if (library === "subscriptions") return applySearch(visible.filter((video) => video.subscribed), query, ranked);
+    if (library === "watch-later") return applySearch(visible.filter((video) => saved.has(video.id)), query, ranked);
+    if (library === "liked") return applySearch(visible.filter((video) => liked.has(video.id)), query, ranked);
+    if (library === "shorts") return applySearch(videos.filter((video) => video.source === "short"), query, ranked);
     return filtered;
-  }, [videos, query, rankedIds, library, saved, liked, filtered]);
+  }, [videos, query, ranked, library, saved, liked, filtered]);
 
   function goHome() {
     setLibrary("home");
@@ -425,7 +422,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} rankedIds={rankedIds} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} ranked={ranked} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (
@@ -466,7 +463,7 @@ export function HomeFeed({
               </h1>
               <p className="mt-1 text-[16px] text-muted">
                 {query.trim()
-                  ? rankedIds
+                  ? ranked
                     ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
                     : "Searching…"
                   : heading.subtitle}
@@ -475,7 +472,7 @@ export function HomeFeed({
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                {query.trim() && !rankedIds ? "Searching…" : "No videos match that search."}
+                {query.trim() && !ranked ? "Searching…" : "No videos match that search."}
               </p>
             ) : query.trim() ? (
               <VideoGrid
@@ -558,7 +555,7 @@ export function HomeFeed({
                 phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
               )}
             >
-              <p>{query.trim() && !rankedIds ? "Searching…" : "No videos match that search."}</p>
+              <p>{query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
             </div>
           ) : (
             <ShortsFeed

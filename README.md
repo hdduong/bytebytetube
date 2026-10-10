@@ -19,7 +19,7 @@ npm run db:upgrade
 npm run clip:setup
 ```
 
-`db:upgrade` creates the pgvector column and index, then fills a CLIP embedding for every existing thumbnail. `clip:setup` downloads the CLIP model into a writable cache before the server handles a search. The app also loads that model when the Node server starts.
+`db:upgrade` creates the pgvector column and index, replaces shared thumbnails when `FAL_KEY` is set, then fills a CLIP embedding for every thumbnail. `clip:setup` downloads the CLIP model into a writable cache before the server handles a search. The Node server loads the text model at startup. Thumbnail scripts load the vision model when they run.
 
 ## Getting Started
 

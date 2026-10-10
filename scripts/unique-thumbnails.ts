@@ -127,7 +127,6 @@ async function main() {
   loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
   const key = process.env.FAL_KEY;
   const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
-  if (!key) throw new Error("FAL_KEY is not set");
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const sql = postgres(connectionString, { prepare: false, max: 1 });
   try {
@@ -146,6 +145,11 @@ async function main() {
     }
     const extras = [...groups.values()].flatMap((group) => group.slice(1));
     console.log(`videos=${rows.length} sharedGroups=${[...groups.values()].filter((group) => group.length > 1).length} toReplace=${extras.length}`);
+    if (extras.length === 0) {
+      console.log("done remainingShared=0");
+      return;
+    }
+    if (!key) throw new Error("FAL_KEY is required to replace shared thumbnails");
     let done = 0;
     const workers = Array.from({ length: 4 }, async () => {
       for (;;) {

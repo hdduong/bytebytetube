@@ -114,7 +114,7 @@ export function WatchView({
 
   useEffect(() => {
     let cancel = false;
-    relatedByThumbnail(video.id)
+    relatedByThumbnail(video.id, recFilter)
       .then((ids) => {
         if (!cancel) setRelatedIds(ids);
       })
@@ -124,7 +124,7 @@ export function WatchView({
     return () => {
       cancel = true;
     };
-  }, [video.id]);
+  }, [video.id, recFilter]);
 
   const likeTotal = likeCount + (liked ? 1 : 0);
   const isSubscribed = Boolean(subscribed[video.channel]);
@@ -132,15 +132,8 @@ export function WatchView({
   const recommendations = useMemo(() => {
     const order = new Map((relatedIds ?? []).map((id, index) => [id, index]));
     return catalog
-      .filter((item) => {
-        if (!order.has(item.id) || item.id === video.id) return false;
-        if (recFilter === "channel") return item.channel === video.channel && !item.topic;
-        if (item.unlisted || item.topic) return false;
-        if (recFilter === "same") return video.topic ? item.topic === video.topic : item.genre === video.genre;
-        return true;
-      })
-      .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0))
-      .slice(0, 12);
+      .filter((item) => order.has(item.id) && item.id !== video.id)
+      .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
   }, [catalog, relatedIds, recFilter, video]);
   const orderedComments = [...comments].sort((a, b) =>
     sort === "top" ? b.likes - a.likes : 0,

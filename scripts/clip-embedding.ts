@@ -82,6 +82,10 @@ async function clipText() {
   return { tokenizer, textModel };
 }
 
+export async function preloadClipText() {
+  await clipText();
+}
+
 export async function preloadClip() {
   await Promise.all([clip(), clipText()]);
 }

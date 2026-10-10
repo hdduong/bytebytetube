@@ -6,6 +6,7 @@ import { SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 import { searchCatalog } from "@/lib/search";
+import { withinMargin, type ScoredSlug } from "@/lib/similarity";
 
 type Tab = "Home" | "Videos" | "Shorts" | "Live" | "Podcasts" | "Playlists" | "Posts";
 type Sort = "Latest" | "Popular" | "Oldest";
@@ -84,12 +85,12 @@ function VideoTile({
 export function ChannelView({
   profile,
   query,
-  rankedIds,
+  ranked,
   onOpen,
 }: {
   profile: ChannelProfile;
   query: string;
-  rankedIds: string[] | null;
+  ranked: ScoredSlug[] | null;
   onOpen: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Home");
@@ -102,7 +103,7 @@ export function ChannelView({
   }));
   const [searching, setSearching] = useState(false);
   const [tabQuery, setTabQuery] = useState("");
-  const [tabResult, setTabResult] = useState<{ query: string; ids: string[] } | null>(null);
+  const [tabResult, setTabResult] = useState<{ query: string; scored: ScoredSlug[] } | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [more, setMore] = useState(false);
 
@@ -112,11 +113,11 @@ export function ChannelView({
     let cancel = false;
     const timer = window.setTimeout(() => {
       searchCatalog(needle)
-        .then((ids) => {
-          if (!cancel) setTabResult({ query: needle, ids });
+        .then((scored) => {
+          if (!cancel) setTabResult({ query: needle, scored });
         })
         .catch(() => {
-          if (!cancel) setTabResult({ query: needle, ids: [] });
+          if (!cancel) setTabResult({ query: needle, scored: [] });
         });
     }, 400);
     return () => {
@@ -127,14 +128,17 @@ export function ChannelView({
 
   const headerQuery = query.trim();
   const localQuery = tabQuery.trim();
-  const tabRank = localQuery && tabResult?.query === localQuery ? tabResult.ids : null;
-  const rank = byRank(localQuery ? tabRank : headerQuery ? rankedIds : null);
-  const waiting = (headerQuery && !rankedIds) || (localQuery && !tabRank);
+  const tabRank = localQuery && tabResult?.query === localQuery ? tabResult.scored : null;
+  const channelItems = [...profile.videos, ...profile.shorts, ...profile.live];
+  const headerMatched = headerQuery ? withinMargin(channelItems, ranked) : null;
+  const localMatched = localQuery ? withinMargin(channelItems, tabRank) : null;
+  const rank = byRank((localMatched ?? headerMatched)?.map((video) => video.id) ?? null);
+  const waiting = (headerQuery && !ranked) || (localQuery && !tabRank);
 
   function matches(video: ChannelVideo) {
     if (waiting) return false;
-    if (headerQuery && !rankedIds?.includes(video.id)) return false;
-    if (localQuery && !tabRank?.includes(video.id)) return false;
+    if (headerQuery && !headerMatched?.some((item) => item.id === video.id)) return false;
+    if (localQuery && !localMatched?.some((item) => item.id === video.id)) return false;
     return true;
   }
 
