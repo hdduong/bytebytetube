@@ -67,17 +67,18 @@ async function main() {
       select pg_class.relname as name
       from pg_index
       join pg_class on pg_class.oid = pg_index.indexrelid
-      where pg_class.relname in ('videos_thumbnail_embedding_idx', 'videos_visible_thumbnail_embedding_idx', 'videos_thumbnail_key')
+      where pg_class.relname in ('videos_thumbnail_embedding_idx', 'videos_visible_thumbnail_embedding_idx', 'videos_short_thumbnail_embedding_idx', 'videos_thumbnail_key')
         and pg_index.indisvalid
     `;
     const index = indexes.find((item) => item.name === "videos_thumbnail_embedding_idx");
     const visibleIndex = indexes.find((item) => item.name === "videos_visible_thumbnail_embedding_idx");
+    const shortIndex = indexes.find((item) => item.name === "videos_short_thumbnail_embedding_idx");
     const thumbnailKey = indexes.find((item) => item.name === "videos_thumbnail_key");
     console.log(
-      `done embedded=${summary?.embedded ?? 0} total=${summary?.total ?? 0} dimensions=${summary?.dimensions ?? "none"} index=${index?.name ?? "missing"} visible=${visibleIndex?.name ?? "missing"} thumbnailKey=${thumbnailKey?.name ?? "missing"}`,
+      `done embedded=${summary?.embedded ?? 0} total=${summary?.total ?? 0} dimensions=${summary?.dimensions ?? "none"} index=${index?.name ?? "missing"} visible=${visibleIndex?.name ?? "missing"} shorts=${shortIndex?.name ?? "missing"} thumbnailKey=${thumbnailKey?.name ?? "missing"}`,
     );
     const dimensionsOk = summary != null && (summary.total === 0 || summary.dimensions === 512);
-    if (!summary || summary.embedded !== summary.total || !dimensionsOk || !index?.name || !visibleIndex?.name || !thumbnailKey?.name) {
+    if (!summary || summary.embedded !== summary.total || !dimensionsOk || !index?.name || !visibleIndex?.name || !shortIndex?.name || !thumbnailKey?.name) {
       process.exitCode = 1;
     }
   } finally {

@@ -1,9 +1,8 @@
-const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DEFAULT_NEIGHBORS = 10;
 const DEFAULT_BATCH = 3;
 
 export function validSlug(value: unknown): value is string {
-  return typeof value === "string" && value.length <= 80 && SLUG.test(value);
+  return typeof value === "string" && value.length >= 1 && value.length <= 120 && !value.includes("\0");
 }
 
 export function neighborLimit(raw = process.env.SHORTS_NEIGHBORS): number {
@@ -24,11 +23,24 @@ export function orderedUnique(values: string[]) {
   return result;
 }
 
-/** Oldest exclusions are dropped first. The last step keeps nothing excluded. */
+/** At most three tries: every exclusion, then only the newer half, then none. */
 export function exclusionLadder(exclude: string[]) {
-  const steps: string[][] = [];
-  for (let index = 0; index <= exclude.length; index += 1) steps.push(exclude.slice(index));
+  if (exclude.length === 0) return [[]];
+  const newer = exclude.slice(Math.ceil(exclude.length / 2));
+  const steps = [exclude];
+  if (newer.length > 0 && newer.length < exclude.length) steps.push(newer);
+  steps.push([]);
   return steps;
+}
+
+export function pickFromNeighbors(ordered: string[], exclude: string[], count: number, random: () => number) {
+  for (const step of exclusionLadder(exclude)) {
+    const blocked = new Set(step);
+    const allowed = ordered.filter((slug) => !blocked.has(slug)).slice(0, count);
+    const pick = chooseFromTop(allowed, random);
+    if (pick) return pick;
+  }
+  return null;
 }
 
 export function chooseFromTop<T>(items: T[], random: () => number): T | null {

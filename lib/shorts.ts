@@ -8,6 +8,7 @@ import {
   exclusionLadder,
   neighborLimit,
   parseShortsRequest,
+  pickFromNeighbors,
   type ShortsRequest,
 } from "./shorts-plan";
 import type { Video } from "./videos";
@@ -49,40 +50,18 @@ async function randomShorts(exclude: string[], anchor: string | null, limit: num
   return [...rows].map((row) => String(row.slug));
 }
 
-async function topNeighbors(anchor: string, exclude: string[], count: number) {
-  const rows =
-    exclude.length === 0
-      ? await db.execute<{ slug: string }>(sql`
-          with candidates as materialized (
-            select slug, thumbnail_embedding
-            from videos
-            where source = 'short'
-              and thumbnail_embedding is not null
-              and slug <> ${anchor}
-          )
-          select slug
-          from candidates
-          order by thumbnail_embedding <=> (
-            select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
-          )
-          limit ${count}
-        `)
-      : await db.execute<{ slug: string }>(sql`
-          with candidates as materialized (
-            select slug, thumbnail_embedding
-            from videos
-            where source = 'short'
-              and thumbnail_embedding is not null
-              and slug <> ${anchor}
-              and ${excluded(exclude)}
-          )
-          select slug
-          from candidates
-          order by thumbnail_embedding <=> (
-            select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
-          )
-          limit ${count}
-        `);
+async function nearestShorts(anchor: string, limit: number) {
+  const rows = await db.execute<{ slug: string }>(sql`
+    select slug
+    from videos
+    where source = 'short'
+      and thumbnail_embedding is not null
+      and slug <> ${anchor}
+    order by thumbnail_embedding <=> (
+      select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
+    )
+    limit ${limit}
+  `);
   return [...rows].map((row) => String(row.slug));
 }
 
@@ -112,11 +91,9 @@ async function pickNeighbor(anchor: string, exclude: string[], count: number) {
   const vector = await shortVector(anchor);
   if (vector === "missing") return null;
   if (vector === "embedded") {
-    for (const step of exclusionLadder(exclude)) {
-      const neighbors = await topNeighbors(anchor, step, count);
-      const pick = chooseFromTop(neighbors, Math.random);
-      if (pick) return pick;
-    }
+    const ordered = await nearestShorts(anchor, Math.min(200, count + exclude.length));
+    const pick = pickFromNeighbors(ordered, exclude, count, Math.random);
+    if (pick) return pick;
   }
   for (const step of exclusionLadder(exclude)) {
     const pool = await randomShorts(step, anchor, count, false);

@@ -5,6 +5,7 @@ import {
   exclusionLadder,
   neighborLimit,
   parseShortsRequest,
+  pickFromNeighbors,
   shortKey,
 } from "./shorts-plan";
 
@@ -20,10 +21,14 @@ test("neighbor count defaults to 10 and ignores bad values", () => {
 test("older exclusions are dropped before newer ones", () => {
   assert.deepEqual(exclusionLadder(["older", "newer", "current"]), [
     ["older", "newer", "current"],
-    ["newer", "current"],
     ["current"],
     [],
   ]);
+});
+
+test("excluded neighbors stay out until older ones are released", () => {
+  assert.equal(pickFromNeighbors(["near", "far"], ["near"], 10, () => 0), "far");
+  assert.equal(pickFromNeighbors(["older", "newer"], ["older", "newer"], 10, () => 0), "older");
 });
 
 test("a next short is chosen at random from the top neighbors", () => {
@@ -41,6 +46,7 @@ test("requests reject oversized or malformed scopes", () => {
   assert.deepEqual(parseShortsRequest(undefined), { exclude: [], count: 3 });
   assert.equal(parseShortsRequest({ count: 9 }), null);
   assert.deepEqual(parseShortsRequest({ anchor: null, count: 1 }), { exclude: [], count: 1 });
-  assert.equal(parseShortsRequest({ exclude: ["OK"] }), null);
+  assert.equal(parseShortsRequest({ exclude: [""] }), null);
+  assert.equal(parseShortsRequest({ anchor: "Hold On" })?.anchor, "Hold On");
   assert.equal(parseShortsRequest({ anchor: "the-chase", exclude: ["older", "older"], count: 2 })?.exclude.length, 1);
 });
