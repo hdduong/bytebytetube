@@ -69,6 +69,7 @@ function RecommendedRun({
   const [tailError, setTailError] = useState(false);
   const session = useRef(0);
   const flight = useRef(0);
+  const flightSession = useRef(0);
   const occurrence = useRef(0);
   const itemsRef = useRef<Occurrence[]>([]);
   const historyRef = useRef<string[]>([]);
@@ -83,8 +84,9 @@ function RecommendedRun({
 
   const append = useCallback(async (sessionId: number, force = false) => {
     if (doneRef.current) return;
-    if (!force && flight.current !== 0) return;
+    if (flight.current !== 0 && (!force || flightSession.current === sessionId)) return;
     const ticket = ++flight.current;
+    flightSession.current = sessionId;
     const list = itemsRef.current;
     const activeIndex = list.findIndex((item) => item.key === activeKey.current);
     const current = (activeIndex >= 0 ? list[activeIndex] : list.at(-1))?.video.id;
@@ -99,7 +101,7 @@ function RecommendedRun({
         exclude: exclude.slice(-80),
         count: BATCH,
       });
-      if (session.current !== sessionId) return;
+      if (session.current !== sessionId || flight.current !== ticket) return;
       if (result.status === "error") {
         if (itemsRef.current.length === 0) setPhase("error");
         else {
@@ -123,7 +125,7 @@ function RecommendedRun({
       setTailError(false);
       setPhase(itemsRef.current.length === 0 ? "empty" : "ready");
     } catch {
-      if (session.current !== sessionId) return;
+      if (session.current !== sessionId || flight.current !== ticket) return;
       if (itemsRef.current.length === 0) setPhase("error");
       else {
         tailErrorRef.current = true;
@@ -182,6 +184,7 @@ function RecommendedRun({
       items={items}
       tailError={tailError}
       onRetryTail={() => {
+        if (flight.current !== 0) return;
         tailErrorRef.current = false;
         setTailError(false);
         void append(session.current, true);
