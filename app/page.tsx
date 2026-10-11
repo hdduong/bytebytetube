@@ -32,6 +32,7 @@ export default async function Home({
       videos={channelCatalog(data)}
       initialLikedIds={viewer.likedIds}
       initialRecommendedIds={viewer.recommendedIds}
+      initialViewerId={viewer.userId}
       profiles={data.profiles}
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}

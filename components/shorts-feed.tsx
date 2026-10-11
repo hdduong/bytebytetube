@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CommentIcon, ShareIcon, ThumbUpIcon } from "@/components/icons";
 import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
@@ -13,16 +13,26 @@ export function ShortsFeed({
   likedIds,
   onLike,
   onChannel,
+  initialVideoId = null,
 }: {
   videos: Video[];
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
   onChannel: (channel: string) => void;
+  initialVideoId?: string | null;
 }) {
+  const start = videos.some((video) => video.id === initialVideoId) ? initialVideoId! : (videos[0]?.id ?? "");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState(videos[0]?.id ?? "");
+  const [activeId, setActiveId] = useState(start);
   const scroller = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const root = scroller.current;
+    if (!root || !start) return;
+    const target = [...root.querySelectorAll("[data-short-id]")].find((item) => item.getAttribute("data-short-id") === start);
+    if (target instanceof HTMLElement) target.scrollIntoView({ block: "start" });
+  }, [start]);
 
   useEffect(() => {
     const root = scroller.current;

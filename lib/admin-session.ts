@@ -8,6 +8,6 @@ export { safeAdminPath, safeNextPath };
 export async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login?next=/admin");
-  if (!session.user.admin) redirect("/login?error=forbidden");
+  if (!session.user.admin) redirect("/login?error=forbidden&next=/admin");
   return session;
 }

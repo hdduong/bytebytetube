@@ -20,12 +20,13 @@ export default async function NerdFramesPage({
 }) {
   const params = await searchParams;
   const initialVideoId = typeof params.v === "string" ? params.v : null;
-  const [data, likedIds] = await Promise.all([loadLibrary(), viewerLikes()]);
+  const [data, viewer] = await Promise.all([loadLibrary(), viewerLikes()]);
   if (!data.profiles.some((profile) => profile.slug === "nerd-frames")) notFound();
   return (
     <HomeFeed
       videos={channelCatalog(data)}
-      initialLikedIds={likedIds}
+      initialLikedIds={viewer.likedIds}
+      initialViewerId={viewer.userId}
       profiles={data.profiles}
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}

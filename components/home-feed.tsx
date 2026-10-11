@@ -107,6 +107,8 @@ export function HomeFeed({
   initialLibrary = "home",
   initialLikedIds = [],
   initialRecommendedIds = [],
+  initialViewerId = null,
+  initialShortId = null,
 }: {
   videos: Video[];
   profiles: ChannelProfile[];
@@ -120,6 +122,8 @@ export function HomeFeed({
   initialLibrary?: LibraryView;
   initialLikedIds?: string[];
   initialRecommendedIds?: string[];
+  initialViewerId?: string | null;
+  initialShortId?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -141,7 +145,7 @@ export function HomeFeed({
   const likeGeneration = useRef(new Map<string, number>());
   const likeChain = useRef(Promise.resolve());
   const intendedLikes = useRef(new Map<string, boolean>());
-  const accountMark = `${initialLikedIds.join("\n")}\n${initialRecommendedIds.join("\n")}`;
+  const accountMark = initialViewerId ?? "";
   const [seenAccount, setSeenAccount] = useState(accountMark);
   if (accountMark !== seenAccount) {
     setSeenAccount(accountMark);
@@ -236,7 +240,8 @@ export function HomeFeed({
         if (!stillCurrent()) return;
         if (result.status === "signin") {
           revert();
-          router.push(`/login?next=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
+          const here = library === "shorts" ? `${pathname}?v=${encodeURIComponent(video.id)}` : `${pathname}${window.location.search}`;
+          router.push(`/login?next=${encodeURIComponent(here)}`);
           return;
         }
         if (result.status === "error") {
@@ -721,6 +726,7 @@ export function HomeFeed({
               videos={libraryVideos}
               phone={phone}
               likedIds={liked}
+              initialVideoId={initialShortId}
               onLike={toggleLike}
               onChannel={openChannel}
             />

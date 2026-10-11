@@ -27,7 +27,7 @@ export default async function ChannelPage({
   searchParams: Promise<{ v?: string | string[] }>;
 }) {
   const { slug } = await params;
-  const [data, likedIds] = await Promise.all([loadLibrary(), viewerLikes()]);
+  const [data, viewer] = await Promise.all([loadLibrary(), viewerLikes()]);
   const channel = data.profiles.find((profile) => profile.slug === slug);
   if (!channel) notFound();
   const query = await searchParams;
@@ -39,7 +39,8 @@ export default async function ChannelPage({
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}
       likesByVideoId={data.likesByVideoId}
-      initialLikedIds={likedIds}
+      initialLikedIds={viewer.likedIds}
+      initialViewerId={viewer.userId}
       initialVideoId={initialVideoId}
       initialChannel={slug}
     />

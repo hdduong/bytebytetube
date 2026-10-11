@@ -21,16 +21,16 @@ async function sessionUserId() {
 
 export async function viewerLikes() {
   const userId = await sessionUserId();
-  if (!userId) return [] as string[];
-  return likedSlugsForUser(userId);
+  if (!userId) return { userId: null as string | null, likedIds: [] as string[] };
+  return { userId, likedIds: await likedSlugsForUser(userId) };
 }
 
 export async function viewerLibrary() {
   const userId = await sessionUserId();
-  if (!userId) return { likedIds: [] as string[], recommendedIds: [] as string[] };
+  if (!userId) return { userId: null as string | null, likedIds: [] as string[], recommendedIds: [] as string[] };
   const likedIds = await likedSlugsForUser(userId);
   const recommended = await recommendedSlugsForUser(userId);
-  return { likedIds, recommendedIds: recommended ?? [] };
+  return { userId, likedIds, recommendedIds: recommended ?? [] };
 }
 
 export async function setVideoLike(slug: unknown, liked: unknown): Promise<LikeResult> {
