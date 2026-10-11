@@ -154,4 +154,5 @@ export async function ensureVectorSchema(sql: postgres.Sql) {
   await sql.unsafe(
     `create index if not exists videos_short_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where source = 'short'`,
   );
+  await sql.unsafe(`create index if not exists videos_short_slug_idx on videos (slug) where source = 'short'`);
 }

@@ -25,28 +25,33 @@ function excluded(exclude: string[]): SQL {
   )})`;
 }
 
+function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boolean) {
+  const exclusion = exclude.length === 0 ? sql`true` : excluded(exclude);
+  return sql`
+    source = 'short'
+    and (${anchor === null} or slug <> ${anchor ?? ""})
+    and (${embeddedOnly} = false or thumbnail_embedding is not null)
+    and ${exclusion}
+  `;
+}
+
 async function randomShorts(exclude: string[], anchor: string | null, limit: number, embeddedOnly: boolean) {
-  const rows =
-    exclude.length === 0
-      ? await db.execute<{ slug: string }>(sql`
-          select slug
-          from videos
-          where source = 'short'
-            and (${anchor === null} or slug <> ${anchor ?? ""})
-            and (${embeddedOnly} = false or thumbnail_embedding is not null)
-          order by random()
-          limit ${limit}
-        `)
-      : await db.execute<{ slug: string }>(sql`
-          select slug
-          from videos
-          where source = 'short'
-            and (${anchor === null} or slug <> ${anchor ?? ""})
-            and (${embeddedOnly} = false or thumbnail_embedding is not null)
-            and ${excluded(exclude)}
-          order by random()
-          limit ${limit}
-        `);
+  const counted = await db.execute<{ total: number | string }>(sql`
+    select count(*)::int as total
+    from videos
+    where ${shortFilter(exclude, anchor, embeddedOnly)}
+  `);
+  const total = Number([...counted][0]?.total ?? 0);
+  if (total === 0) return [];
+  const start = Math.floor(Math.random() * Math.max(total - limit + 1, 1));
+  const rows = await db.execute<{ slug: string }>(sql`
+    select slug
+    from videos
+    where ${shortFilter(exclude, anchor, embeddedOnly)}
+    order by slug
+    offset ${start}
+    limit ${limit}
+  `);
   return [...rows].map((row) => String(row.slug));
 }
 
