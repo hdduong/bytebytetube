@@ -132,6 +132,7 @@ export function HomeFeed({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [searchNonce, setSearchNonce] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(
     initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
   );
@@ -193,11 +194,7 @@ export function HomeFeed({
 
   useEffect(() => {
     const needle = query.trim();
-    if (!needle) {
-      setSearchError(false);
-      return;
-    }
-    setSearchError(false);
+    if (!needle) return;
     let cancel = false;
     let retryTimer = 0;
     let attempt = 0;
@@ -221,13 +218,16 @@ export function HomeFeed({
           if (!cancel) setSearchError(true);
         });
     };
-    const timer = window.setTimeout(run, 400);
+    const timer = window.setTimeout(() => {
+      setSearchError(false);
+      run();
+    }, 400);
     return () => {
       cancel = true;
       window.clearTimeout(timer);
       window.clearTimeout(retryTimer);
     };
-  }, [query, searchScope]);
+  }, [query, searchScope, searchNonce]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -240,6 +240,7 @@ export function HomeFeed({
   }, []);
 
   const needle = query.trim();
+  const failedSearch = needle.length > 0 && searchError;
   const ranked =
     needle && searchResult?.query === needle && searchResult.scope === scopeKey(searchScope)
       ? searchResult.scored
@@ -472,7 +473,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={searchError} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={failedSearch} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (
@@ -513,7 +514,7 @@ export function HomeFeed({
               </h1>
               <p className="mt-1 text-[16px] text-muted">
                 {query.trim()
-                  ? searchError
+                  ? failedSearch
                     ? "Search is unavailable right now."
                     : ranked
                       ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
@@ -524,7 +525,7 @@ export function HomeFeed({
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                {searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
+                {failedSearch ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
               </p>
             ) : query.trim() ? (
               <VideoGrid
@@ -599,16 +600,16 @@ export function HomeFeed({
             <h1 className="text-[28px] font-bold">{explore}</h1>
             <p className="mb-6 mt-1 text-[16px] text-muted">
               {query.trim()
-                ? searchError
+                ? failedSearch
                   ? "Search is unavailable right now."
                   : ranked
                     ? `${exploreFeed.length} videos`
                     : "Searching…"
                 : exploreCopy[explore]}
             </p>
-            {query.trim() && (searchError || !ranked) ? (
+            {query.trim() && (failedSearch || !ranked) ? (
               <p className="py-16 text-muted">
-                {searchError ? "Search is unavailable right now." : "Searching…"}
+                {failedSearch ? "Search is unavailable right now." : "Searching…"}
               </p>
             ) : exploreFeed.length === 0 ? (
               <p className="py-16 text-muted">No videos match that search.</p>
@@ -627,18 +628,44 @@ export function HomeFeed({
         ) : null}
 
         {showShorts ? (
-          libraryVideos.length === 0 ? (
-            <div
-              className={cn(
-                "grid place-items-center px-6 text-center text-muted",
-                phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
-              )}
-            >
-              <p>{searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
-            </div>
+          query.trim() ? (
+            failedSearch || !ranked || libraryVideos.length === 0 ? (
+              <div
+                className={cn(
+                  "grid place-items-center px-6 text-center text-muted",
+                  phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
+                )}
+              >
+                <div>
+                  <p>
+                    {failedSearch
+                      ? "Search is unavailable right now."
+                      : !ranked
+                        ? "Searching…"
+                        : "No videos match that search."}
+                  </p>
+                  {failedSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchNonce((current) => current + 1)}
+                      className="mt-4 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink"
+                    >
+                      Try again
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <ShortsFeed
+                videos={libraryVideos}
+                phone={phone}
+                likedIds={liked}
+                onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                onChannel={openChannel}
+              />
+            )
           ) : (
             <ShortsFeed
-              videos={libraryVideos}
               phone={phone}
               likedIds={liked}
               onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
@@ -663,9 +690,9 @@ export function HomeFeed({
                   ? "Reviews you saved to watch later"
                   : "Reviews you liked"}
             </p>
-            {query.trim() && (searchError || !ranked) ? (
+            {query.trim() && (failedSearch || !ranked) ? (
               <p className="py-16 text-muted">
-                {searchError ? "Search is unavailable right now." : "Searching…"}
+                {failedSearch ? "Search is unavailable right now." : "Searching…"}
               </p>
             ) : libraryVideos.length === 0 ? (
               <p className="py-16 text-muted">

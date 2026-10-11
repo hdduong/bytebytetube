@@ -21,6 +21,8 @@ npm run db:upgrade
 
 `db:upgrade` creates the pgvector column and index, replaces shared thumbnails, then fills a CLIP embedding for every thumbnail. `FAL_KEY` is required when any thumbnails are still shared. If none are shared, that step finishes without it. `clip:setup` downloads the CLIP model into a writable cache before the server handles a search. The Node server loads the text model at startup. Thumbnail scripts load the vision model when they run.
 
+Shorts recommendations reuse those stored thumbnail embeddings. Set `SHORTS_NEIGHBORS` to change how many nearest Shorts are eligible for the next pick. The default is 10. Scrolling does not download a model or generate a picture.
+
 ## Getting Started
 
 First, run the development server:
