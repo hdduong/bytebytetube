@@ -28,6 +28,9 @@ function localPath(value: string | undefined) {
   if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\") || decoded.includes("://")) {
     return null;
   }
+  if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !hasControlCharacter(value) && value.length <= 200) {
+    return value;
+  }
   const limited = decoded.slice(0, 200);
   if (!limited.startsWith("/") || limited.startsWith("//") || hasControlCharacter(limited)) return null;
   return limited;

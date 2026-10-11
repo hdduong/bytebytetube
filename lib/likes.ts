@@ -29,8 +29,12 @@ export async function viewerLibrary() {
   const userId = await sessionUserId();
   if (!userId) return { userId: null as string | null, likedIds: [] as string[], recommendedIds: [] as string[] };
   const likedIds = await likedSlugsForUser(userId);
-  const recommended = await recommendedSlugsForUser(userId);
-  return { userId, likedIds, recommendedIds: recommended ?? [] };
+  try {
+    const recommended = await recommendedSlugsForUser(userId);
+    return { userId, likedIds, recommendedIds: recommended ?? [] };
+  } catch {
+    return { userId, likedIds, recommendedIds: [] };
+  }
 }
 
 export async function setVideoLike(slug: unknown, liked: unknown): Promise<LikeResult> {
