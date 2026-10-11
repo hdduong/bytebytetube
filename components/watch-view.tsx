@@ -94,28 +94,6 @@ export function WatchView({
   }, [video.id]);
 
   useEffect(() => {
-    if (!playing) return;
-    const timer = window.setInterval(() => {
-      const media = mediaRef.current;
-      if (!media || media.paused || media.readyState < 2) return;
-      const now = media.currentTime;
-      if (watched.current < 0) {
-        watched.current = 0;
-      }
-      const previous = media.dataset.tasteTime ? Number(media.dataset.tasteTime) : now;
-      let delta = now - previous;
-      if (delta < 0) delta += Number.isFinite(media.duration) ? media.duration : 0;
-      media.dataset.tasteTime = String(now);
-      if (delta <= 0 || delta > 1) return;
-      watched.current += delta;
-      if (watched.current < 5) return;
-      watched.current -= 5;
-      recordTaste(video, "watch");
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, [playing, speed, video]);
-
-  useEffect(() => {
     const media = mediaRef.current;
     if (!media) return;
     media.muted = muted;
@@ -136,9 +114,16 @@ export function WatchView({
   useEffect(() => {
     if (!playing || length === 0) return;
     const timer = window.setInterval(() => {
-      if (mediaRef.current?.paused) return;
+      const media = mediaRef.current;
+      if (!media || media.paused || media.readyState < 2) return;
+      const step = 0.25 * speed;
+      watched.current += step;
+      while (watched.current >= 5) {
+        watched.current -= 5;
+        recordTaste(video, "watch");
+      }
       setTime((current) => {
-        const next = current + 0.25 * speed;
+        const next = current + step;
         if (next >= length) {
           setPlaying(false);
           return length;
@@ -147,7 +132,7 @@ export function WatchView({
       });
     }, 250);
     return () => window.clearInterval(timer);
-  }, [playing, length, speed]);
+  }, [playing, length, speed, video]);
 
   useEffect(() => {
     setRelatedIds(null);
