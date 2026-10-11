@@ -31,9 +31,9 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   const exclusion = exclude.length === 0 ? sql`true` : excluded(exclude);
   return sql`
     source = 'short'
+    and char_length(slug) <= ${SLUG_LIMIT}
     and (${anchor === null} or slug <> ${anchor ?? ""})
     and (${embeddedOnly} = false or thumbnail_embedding is not null)
-    and char_length(slug) <= ${SLUG_LIMIT}
     and ${exclusion}
   `;
 }

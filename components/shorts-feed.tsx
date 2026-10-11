@@ -14,6 +14,15 @@ const BATCH = 3;
 
 type Occurrence = { key: string; video: Video };
 
+function stableItems(videos: Video[]): Occurrence[] {
+  const seen = new Map<string, number>();
+  return videos.map((video) => {
+    const count = seen.get(video.id) ?? 0;
+    seen.set(video.id, count + 1);
+    return { key: count === 0 ? video.id : shortKey(video.id, count), video };
+  });
+}
+
 export function ShortsFeed({
   videos,
   phone,
@@ -34,7 +43,7 @@ export function ShortsFeed({
         likedIds={likedIds}
         onLike={onLike}
         onChannel={onChannel}
-        items={videos.map((video, index) => ({ key: shortKey(video.id, index), video }))}
+        items={stableItems(videos)}
       />
     );
   }

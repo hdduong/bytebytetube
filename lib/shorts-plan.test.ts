@@ -40,6 +40,8 @@ test("a next short is chosen at random from the top neighbors", () => {
 
 test("the same short can play again under a new feed key", () => {
   assert.notEqual(shortKey("the-chase", 1), shortKey("the-chase", 2));
+  assert.notEqual(shortKey("a:1", 2), shortKey("a", 12));
+  assert.notEqual(shortKey("clip:1", 2), shortKey("clip:1:2", 3));
 });
 
 test("requests reject oversized or malformed scopes", () => {

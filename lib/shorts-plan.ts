@@ -52,7 +52,7 @@ export function chooseFromTop<T>(items: T[], random: () => number): T | null {
 }
 
 export function shortKey(slug: string, occurrence: number) {
-  return `${slug}:${occurrence}`;
+  return `${occurrence}\0${slug}`;
 }
 
 export type ShortsRequest = {
