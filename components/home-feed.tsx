@@ -13,12 +13,14 @@ import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
+import { loadTaste, recommendFromTaste, type TasteProfile } from "@/lib/preferences";
+import { searchCatalog } from "@/lib/search";
+import { scopeKey, withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
 import {
   chips,
   isGenre,
   matchesChip,
-  matchesQuery,
   type Chip,
   type ExploreTopic,
   type Genre,
@@ -87,6 +89,11 @@ function toggleId(current: string[], id: string) {
   return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
 }
 
+function applySearch<T extends { id: string }>(list: T[], query: string, scored: ScoredSlug[] | null) {
+  if (!query.trim()) return list;
+  return withinMargin(list, scored);
+}
+
 export function HomeFeed({
   videos,
   profiles,
@@ -113,6 +120,9 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
+  const [searchError, setSearchError] = useState(false);
+  const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
@@ -157,6 +167,68 @@ export function HomeFeed({
     setMobileOpen(false);
   }
 
+  const searchScope = useMemo((): SearchScope => {
+    if (channel) {
+      const name = profiles.find((profile) => profile.slug === channel)?.name;
+      if (name) return { channel: name };
+    }
+    if (explore) return { topic: explore, unlisted: false };
+    if (library === "shorts") return { source: "short" };
+    if (library === "subscriptions") return { unlisted: false, subscribed: true };
+    if (library === "watch-later") return { ids: savedIds, unlisted: false };
+    if (library === "liked") return { ids: likedIds, unlisted: false };
+    if (isGenre(chip)) return { unlisted: false, topic: null, genre: chip };
+    if (chip === "New releases") return { unlisted: false, topic: null, newRelease: true };
+    if (chip === "Spoiler-free") return { unlisted: false, topic: null, spoilerFree: true };
+    if (chip === "Top rated") return { unlisted: false, topic: null, topRated: true };
+    return { unlisted: false, topic: null };
+  }, [channel, profiles, explore, library, chip, savedIds, likedIds]);
+
+  useEffect(() => {
+    const refresh = () => setTaste(loadTaste());
+    refresh();
+    window.addEventListener("cinematube-taste", refresh);
+    return () => window.removeEventListener("cinematube-taste", refresh);
+  }, []);
+
+  useEffect(() => {
+    const needle = query.trim();
+    if (!needle) {
+      setSearchError(false);
+      return;
+    }
+    setSearchError(false);
+    let cancel = false;
+    let retryTimer = 0;
+    let attempt = 0;
+    const run = () => {
+      const scope = scopeKey(searchScope);
+      searchCatalog(needle, searchScope)
+        .then((result) => {
+          if (cancel) return;
+          if (result.status === "busy" && attempt < 3) {
+            attempt += 1;
+            retryTimer = window.setTimeout(run, 400 * attempt);
+            return;
+          }
+          if (result.status === "busy") {
+            setSearchError(true);
+            return;
+          }
+          setSearchResult({ query: needle, scope, scored: result.scored });
+        })
+        .catch(() => {
+          if (!cancel) setSearchError(true);
+        });
+    };
+    const timer = window.setTimeout(run, 400);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+      window.clearTimeout(retryTimer);
+    };
+  }, [query, searchScope]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
@@ -167,6 +239,11 @@ export function HomeFeed({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const needle = query.trim();
+  const ranked =
+    needle && searchResult?.query === needle && searchResult.scope === scopeKey(searchScope)
+      ? searchResult.scored
+      : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
   const liked = useMemo(() => new Set(likedIds), [likedIds]);
   const movies = useMemo(
@@ -187,26 +264,23 @@ export function HomeFeed({
   const activeVideo = videos.find((video) => video.id === activeId) ?? null;
 
   const filtered = useMemo(
-    () => movies.filter((video) => matchesChip(video, chip) && matchesQuery(video, query)),
-    [movies, chip, query],
+    () => applySearch(movies.filter((video) => matchesChip(video, chip)), query, ranked),
+    [movies, chip, query, ranked],
   );
 
   const exploreFeed = useMemo(
-    () =>
-      videos.filter(
-        (video) => video.topic === explore && !video.unlisted && matchesQuery(video, query),
-      ),
-    [videos, explore, query],
+    () => applySearch(videos.filter((video) => video.topic === explore && !video.unlisted), query, ranked),
+    [videos, explore, query, ranked],
   );
 
   const libraryVideos = useMemo(() => {
-    const base = videos.filter((video) => !video.unlisted && matchesQuery(video, query));
-    if (library === "subscriptions") return base.filter((video) => video.subscribed);
-    if (library === "watch-later") return base.filter((video) => saved.has(video.id));
-    if (library === "liked") return base.filter((video) => liked.has(video.id));
-    if (library === "shorts") return videos.filter((video) => video.source === "short" && matchesQuery(video, query));
+    const visible = videos.filter((video) => !video.unlisted);
+    if (library === "subscriptions") return applySearch(visible.filter((video) => video.subscribed), query, ranked);
+    if (library === "watch-later") return applySearch(visible.filter((video) => saved.has(video.id)), query, ranked);
+    if (library === "liked") return applySearch(visible.filter((video) => liked.has(video.id)), query, ranked);
+    if (library === "shorts") return applySearch(videos.filter((video) => video.source === "short"), query, ranked);
     return filtered;
-  }, [videos, movies, query, library, saved, liked, filtered]);
+  }, [videos, query, ranked, library, saved, liked, filtered]);
 
   function goHome() {
     setLibrary("home");
@@ -278,6 +352,7 @@ export function HomeFeed({
   }
 
   const heading = headings[chip];
+  const forYou = recommendFromTaste(filtered, taste);
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
   const channelProfile = channel ? (profiles.find((profile) => profile.slug === channel) ?? null) : null;
@@ -397,7 +472,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={searchError} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (
@@ -437,16 +512,49 @@ export function HomeFeed({
                 {query.trim() ? `Results for “${query.trim()}”` : heading.title}
               </h1>
               <p className="mt-1 text-[16px] text-muted">
-                {query.trim() ? `${filtered.length} reviews` : heading.subtitle}
+                {query.trim()
+                  ? searchError
+                    ? "Search is unavailable right now."
+                    : ranked
+                      ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
+                      : "Searching…"
+                  : heading.subtitle}
               </p>
             </div>
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                No reviews match that search. Try a genre, a creator, or a title.
+                {searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
               </p>
+            ) : query.trim() ? (
+              <VideoGrid
+                videos={filtered}
+                savedIds={saved}
+                likedIds={liked}
+                onOpen={(video) => openVideo(video.id)}
+                onChannel={openChannel}
+                onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
+                onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+              />
             ) : (
               <>
+                {forYou.videos.length > 0 ? (
+                  <section className="mb-10">
+                    <h2 className="text-[20px] font-bold">Recommended for you</h2>
+                    <p className="mb-4 mt-1 text-[14px] text-muted">
+                      Based on {forYou.top.map((dimension) => dimension.label).join(", ")}
+                    </p>
+                    <VideoGrid
+                      videos={forYou.videos}
+                      savedIds={saved}
+                      likedIds={liked}
+                      onOpen={(video) => openVideo(video.id)}
+                      onChannel={openChannel}
+                      onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
+                      onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                    />
+                  </section>
+                ) : null}
                 {fresh.length > 0 ? (
                   <VideoGrid
                     videos={fresh}
@@ -490,9 +598,19 @@ export function HomeFeed({
           <section className="pt-6">
             <h1 className="text-[28px] font-bold">{explore}</h1>
             <p className="mb-6 mt-1 text-[16px] text-muted">
-              {query.trim() ? `${exploreFeed.length} videos` : exploreCopy[explore]}
+              {query.trim()
+                ? searchError
+                  ? "Search is unavailable right now."
+                  : ranked
+                    ? `${exploreFeed.length} videos`
+                    : "Searching…"
+                : exploreCopy[explore]}
             </p>
-            {exploreFeed.length === 0 ? (
+            {query.trim() && (searchError || !ranked) ? (
+              <p className="py-16 text-muted">
+                {searchError ? "Search is unavailable right now." : "Searching…"}
+              </p>
+            ) : exploreFeed.length === 0 ? (
               <p className="py-16 text-muted">No videos match that search.</p>
             ) : (
               <VideoGrid
@@ -516,7 +634,7 @@ export function HomeFeed({
                 phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
               )}
             >
-              <p>No reviews match that search. Try a genre, a creator, or a title.</p>
+              <p>{searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
             </div>
           ) : (
             <ShortsFeed
@@ -545,13 +663,19 @@ export function HomeFeed({
                   ? "Reviews you saved to watch later"
                   : "Reviews you liked"}
             </p>
-            {libraryVideos.length === 0 ? (
+            {query.trim() && (searchError || !ranked) ? (
               <p className="py-16 text-muted">
-                {library === "watch-later"
-                  ? "Nothing saved yet. Hover a review and choose Watch later."
-                  : library === "liked"
-                    ? "No liked reviews yet. Open the menu on a review and add it here."
-                    : "No subscribed reviews match that search."}
+                {searchError ? "Search is unavailable right now." : "Searching…"}
+              </p>
+            ) : libraryVideos.length === 0 ? (
+              <p className="py-16 text-muted">
+                {query.trim()
+                  ? "No videos match that search."
+                  : library === "watch-later"
+                    ? "Nothing saved yet. Hover a review and choose Watch later."
+                    : library === "liked"
+                      ? "No liked reviews yet. Open the menu on a review and add it here."
+                      : "No subscribed reviews match that search."}
               </p>
             ) : (
               <VideoGrid

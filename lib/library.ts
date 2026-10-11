@@ -1,10 +1,15 @@
 import { cache } from "react";
-import { asc } from "drizzle-orm";
+import { asc, getTableColumns } from "drizzle-orm";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { channels, comments, users, videos } from "@/drizzle/schema";
 import { exploreTopics, isGenre, type ExploreTopic, type Video } from "@/lib/videos";
 import type { Comment } from "@/lib/watch";
+
+function catalogColumns() {
+  const { thumbnailEmbedding: _embedding, ...columns } = getTableColumns(videos);
+  return columns;
+}
 
 type StoredVideo = Video & {
   source: string;
@@ -15,7 +20,7 @@ type StoredVideo = Video & {
   likeCount: number;
 };
 
-function toVideo(row: typeof videos.$inferSelect, channelSlug: string): StoredVideo {
+function toVideo(row: Omit<typeof videos.$inferSelect, "thumbnailEmbedding">, channelSlug: string): StoredVideo {
   const genre = row.genre && isGenre(row.genre) ? row.genre : undefined;
   const topic = (exploreTopics as readonly string[]).includes(row.topic ?? "")
     ? (row.topic as ExploreTopic)
@@ -81,7 +86,7 @@ export type Library = {
 export const loadLibrary = cache(async (): Promise<Library> => {
   const [channelRows, videoRows, commentRows, userRows] = await Promise.all([
     db.select().from(channels).orderBy(asc(channels.name)),
-    db.select().from(videos).orderBy(asc(videos.sortOrder)),
+    db.select(catalogColumns()).from(videos).orderBy(asc(videos.sortOrder)),
     db.select().from(comments).orderBy(asc(comments.sortOrder)),
     db.select().from(users),
   ]);

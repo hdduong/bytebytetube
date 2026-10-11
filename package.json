@@ -11,9 +11,13 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "db:auth": "node scripts/auth-schema.mjs"
+    "db:auth": "node scripts/auth-schema.mjs",
+    "db:embeddings": "tsx scripts/embed-thumbnails.ts",
+    "db:upgrade": "tsx scripts/prefetch-clip.ts && node scripts/auth-schema.mjs && tsx scripts/unique-thumbnails.ts && tsx scripts/embed-thumbnails.ts",
+    "clip:setup": "tsx scripts/prefetch-clip.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "hls.js": "^1.7.3",
@@ -21,6 +25,7 @@
     "postgres": "^3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "tsx": "4.21.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

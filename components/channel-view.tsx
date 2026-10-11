@@ -1,10 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
+import { searchCatalog } from "@/lib/search";
+import { withinMargin, type ScoredSlug } from "@/lib/similarity";
 
 type Tab = "Home" | "Videos" | "Shorts" | "Live" | "Podcasts" | "Playlists" | "Posts";
 type Sort = "Latest" | "Popular" | "Oldest";
@@ -31,10 +33,9 @@ function ShortCard({
   );
 }
 
-function matchesSearch(video: ChannelVideo, query: string) {
-  if (!query) return true;
-  const haystack = `${video.title} ${video.overlay} ${video.genre}`.toLowerCase();
-  return haystack.includes(query);
+function byRank(ids: string[] | null) {
+  if (!ids) return null;
+  return new Map(ids.map((id, index) => [id, index]));
 }
 
 function VideoTile({
@@ -84,10 +85,14 @@ function VideoTile({
 export function ChannelView({
   profile,
   query,
+  ranked,
+  searchFailed = false,
   onOpen,
 }: {
   profile: ChannelProfile;
   query: string;
+  ranked: ScoredSlug[] | null;
+  searchFailed?: boolean;
   onOpen: (id: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Home");
@@ -100,21 +105,82 @@ export function ChannelView({
   }));
   const [searching, setSearching] = useState(false);
   const [tabQuery, setTabQuery] = useState("");
+  const [tabResult, setTabResult] = useState<{ query: string; channel: string; scored: ScoredSlug[] } | null>(null);
+  const [searchError, setSearchError] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [more, setMore] = useState(false);
 
-  const terms = [query, tabQuery].map((value) => value.trim().toLowerCase()).filter(Boolean);
+  useEffect(() => {
+    const needle = tabQuery.trim();
+    if (!needle) {
+      setSearchError(false);
+      return;
+    }
+    setSearchError(false);
+    let cancel = false;
+    let retryTimer = 0;
+    let attempt = 0;
+    const run = () => {
+      searchCatalog(needle, { channel: profile.name })
+        .then((result) => {
+          if (cancel) return;
+          if (result.status === "busy" && attempt < 3) {
+            attempt += 1;
+            retryTimer = window.setTimeout(run, 400 * attempt);
+            return;
+          }
+          if (result.status === "busy") {
+            setSearchError(true);
+            return;
+          }
+          setTabResult({ query: needle, channel: profile.name, scored: result.scored });
+        })
+        .catch(() => {
+          if (!cancel) setSearchError(true);
+        });
+    };
+    const timer = window.setTimeout(run, 400);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+      window.clearTimeout(retryTimer);
+    };
+  }, [tabQuery, profile.name]);
 
-  const matched = profile.videos.filter((video) => terms.every((term) => matchesSearch(video, term)));
-  const shorts = profile.shorts.filter((video) => terms.every((term) => matchesSearch(video, term)));
-  const live = profile.live.filter((video) => terms.every((term) => matchesSearch(video, term)));
-  const videos = matched
-    .filter((video) => genre === "All genres" || video.genre === genre)
-    .sort((a, b) => {
-      if (sort === "Popular") return b.viewCount - a.viewCount;
-      if (sort === "Oldest") return b.recency - a.recency;
-      return a.recency - b.recency;
-    });
+  const headerQuery = query.trim();
+  const localQuery = tabQuery.trim();
+  const tabRank =
+    localQuery && tabResult?.query === localQuery && tabResult.channel === profile.name ? tabResult.scored : null;
+  const channelItems = [...profile.videos, ...profile.shorts, ...profile.live];
+  const headerMatched = headerQuery ? withinMargin(channelItems, ranked) : null;
+  const localMatched = localQuery ? withinMargin(channelItems, tabRank) : null;
+  const rank = byRank((localMatched ?? headerMatched)?.map((video) => video.id) ?? null);
+  const waiting = !searchFailed && ((headerQuery && !ranked) || (localQuery && !tabRank));
+
+  function matches(video: ChannelVideo) {
+    if (waiting) return false;
+    if (headerQuery && !headerMatched?.some((item) => item.id === video.id)) return false;
+    if (localQuery && !localMatched?.some((item) => item.id === video.id)) return false;
+    return true;
+  }
+
+  function order(list: ChannelVideo[]) {
+    if (!rank) return list;
+    return [...list].sort((left, right) => (rank.get(left.id) ?? 1e9) - (rank.get(right.id) ?? 1e9));
+  }
+
+  const matched = order(profile.videos.filter(matches));
+  const shorts = order(profile.shorts.filter(matches));
+  const live = order(profile.live.filter(matches));
+  const genreVideos = matched.filter((video) => genre === "All genres" || video.genre === genre);
+  const videos =
+    headerQuery || localQuery
+      ? genreVideos
+      : genreVideos.sort((left, right) => {
+          if (sort === "Popular") return right.viewCount - left.viewCount;
+          if (sort === "Oldest") return right.recency - left.recency;
+          return left.recency - right.recency;
+        });
 
   function selectTab(next: Tab) {
     setGenre("All genres");
@@ -224,7 +290,7 @@ export function ChannelView({
         <section>
           <h2 className="mb-3 text-[20px] font-bold">Videos</h2>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">No videos match that search.</p>
+            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
               {videos.map((video) => (
@@ -277,7 +343,7 @@ export function ChannelView({
             })}
           </div>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">No videos match that search.</p>
+            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
@@ -296,7 +362,7 @@ export function ChannelView({
       {tab === "Shorts" ? (
         shorts.length === 0 ? (
           <p className="py-16 text-muted">
-            {profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
+            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
@@ -310,7 +376,7 @@ export function ChannelView({
       {tab === "Live" ? (
         live.length === 0 ? (
           <p className="py-16 text-muted">
-            {profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
+            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">

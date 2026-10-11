@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq, or, sql } from "drizzle-orm";
+import type { OverlayPart } from "../lib/videos";
 import { FAL_CHEAPEST_IMAGE_TO_VIDEO, falImageToVideoBody } from "./fal-model";
 const ROOT = process.cwd();
 
@@ -89,31 +90,42 @@ async function main() {
     .where(or(sql`body ilike '%punch with a plot%'`, sql`body ilike '%sky is doing too much%'`));
   console.log(`comments mentioning old titles=${commentHits[0]?.count ?? 0}`);
 
+  let failed = false;
   for (const item of renames) {
-    const rows = await db
-      .update(videos)
-      .set({
-        title: item.title,
-        slug: item.slug,
-        overlay: item.overlay,
-        thumbnail: "/thumbnails/thumb-animation-sky.png",
-        duration: "0:05",
-      })
-      .where(or(...[...item.fromSlugs, item.slug].map((slug) => eq(videos.slug, slug))))
-      .returning({ genre: videos.genre, topic: videos.topic, source: videos.source, thumbnail: videos.thumbnail });
-    const video = rows[0];
-    if (!video) throw new Error(`missing video ${item.fromSlugs[0]}`);
-    console.log(`renamed ${item.fromSlugs[0]} -> ${item.slug} thumb=${video.thumbnail} genre=${video.genre}`);
-
     try {
-      const file = path.join(ROOT, "public", video.thumbnail.replace(/^\//, ""));
-      const bytes = await readFile(file);
+      const { clipImageEmbedding } = await import("./clip-embedding");
+      const { generateUniqueThumbnail } = await import("./unique-thumbnails");
+      const thumbnail = await generateUniqueThumbnail(key, {
+        slug: item.slug,
+        title: item.title,
+        genre: null,
+        source: "feed",
+      });
+      const embedding = await clipImageEmbedding(thumbnail);
+      const image = await fetch(thumbnail);
+      if (!image.ok) throw new Error(`thumbnail download ${image.status} for ${item.slug}`);
+      const bytes = new Uint8Array(await image.arrayBuffer());
+      const rows = await db
+        .update(videos)
+        .set({
+          title: item.title,
+          slug: item.slug,
+          overlay: item.overlay as OverlayPart[][],
+          thumbnail,
+          thumbnailEmbedding: embedding,
+          duration: "0:05",
+        })
+        .where(or(...[...item.fromSlugs, item.slug].map((slug) => eq(videos.slug, slug))))
+        .returning({ genre: videos.genre, topic: videos.topic, source: videos.source, thumbnail: videos.thumbnail });
+      const video = rows[0];
+      if (!video) throw new Error(`missing video ${item.fromSlugs[0]}`);
+      console.log(`renamed ${item.fromSlugs[0]} -> ${item.slug} thumb=${video.thumbnail} genre=${video.genre}`);
       const type = video.thumbnail.endsWith(".png") ? "image/png" : "image/jpeg";
       const queued = await fal(key, `https://queue.fal.run/${FAL_CHEAPEST_IMAGE_TO_VIDEO}`, {
         method: "POST",
         body: JSON.stringify(
           falImageToVideoBody(
-            `data:${type};base64,${bytes.toString("base64")}`,
+            `data:${type};base64,${Buffer.from(bytes).toString("base64")}`,
             promptFor(item.title, video.genre || video.topic || "movie", video.source),
           ),
         ),
@@ -136,9 +148,11 @@ async function main() {
       await writeFile(path.join(ROOT, "public", "videos", `${item.slug}.mp4`), Buffer.from(await response.arrayBuffer()));
       console.log(`saved ${item.slug}`);
     } catch (error) {
+      failed = true;
       console.error(`${item.slug}: ${redact(error)}`);
     }
   }
+  if (failed) process.exitCode = 1;
 
   await client.end();
   console.log("renames finished");

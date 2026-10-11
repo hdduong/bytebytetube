@@ -1,14 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MoreIcon, ThumbUpIcon } from "@/components/icons";
 import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
+import { recordTaste } from "@/lib/preferences";
+import { relatedByThumbnail } from "@/lib/search";
 import type { Video } from "@/lib/videos";
 import {
   formatCount,
-  recommendedVideos,
   watchDescription,
   watchDescriptionMore,
   watchTitle,
@@ -71,11 +72,30 @@ export function WatchView({
   const [subscribed, setSubscribed] = useState<Record<string, boolean>>({});
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
+  const [relatedResult, setRelatedResult] = useState<{
+    videoId: string;
+    filter: "all" | "same" | "channel";
+    ids: string[] | null;
+    error: boolean;
+  } | null>(null);
   const [sort, setSort] = useState<"newest" | "top">("newest");
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState("");
+  const watched = useRef(0);
+  const watchedId = useRef(video.id);
+
+  useEffect(() => {
+    recordTaste(video, "open");
+  }, [video]);
+
+  useEffect(() => {
+    if (watchedId.current !== video.id) {
+      watchedId.current = video.id;
+      watched.current = 0;
+    }
+  }, [video.id]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -98,9 +118,16 @@ export function WatchView({
   useEffect(() => {
     if (!playing || length === 0) return;
     const timer = window.setInterval(() => {
-      if (mediaRef.current?.paused) return;
+      const media = mediaRef.current;
+      if (!media || media.paused || media.readyState < 2) return;
+      const step = 0.25 * speed;
+      watched.current += step;
+      while (watched.current >= 5) {
+        watched.current -= 5;
+        recordTaste(video, "watch");
+      }
       setTime((current) => {
-        const next = current + 0.25 * speed;
+        const next = current + step;
         if (next >= length) {
           setPlaying(false);
           return length;
@@ -109,12 +136,36 @@ export function WatchView({
       });
     }, 250);
     return () => window.clearInterval(timer);
-  }, [playing, length, speed]);
+  }, [playing, length, speed, video]);
+
+  useEffect(() => {
+    let cancel = false;
+    relatedByThumbnail(video.id, recFilter)
+      .then((ids) => {
+        if (!cancel) setRelatedResult({ videoId: video.id, filter: recFilter, ids, error: false });
+      })
+      .catch(() => {
+        if (!cancel) setRelatedResult({ videoId: video.id, filter: recFilter, ids: null, error: true });
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [video.id, recFilter]);
+
+  const relatedReady =
+    relatedResult && relatedResult.videoId === video.id && relatedResult.filter === recFilter ? relatedResult : null;
+  const relatedIds = relatedReady && !relatedReady.error ? relatedReady.ids : null;
+  const relatedError = relatedReady?.error ?? false;
 
   const likeTotal = likeCount + (liked ? 1 : 0);
   const isSubscribed = Boolean(subscribed[video.channel]);
   const sameLabel = video.topic ?? video.genre ?? "Related";
-  const recommendations = recommendedVideos(video, catalog, recFilter);
+  const recommendations = useMemo(() => {
+    const order = new Map((relatedIds ?? []).map((id, index) => [id, index]));
+    return catalog
+      .filter((item) => order.has(item.id) && item.id !== video.id)
+      .sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+  }, [catalog, relatedIds, recFilter, video]);
   const orderedComments = [...comments].sort((a, b) =>
     sort === "top" ? b.likes - a.likes : 0,
   );
@@ -673,7 +724,9 @@ export function WatchView({
           ))}
         </ul>
         {recommendations.length === 0 ? (
-          <p className="py-6 text-sm text-muted">No recommendations for that filter.</p>
+          <p className="py-6 text-sm text-muted">
+            {relatedError ? "Recommendations are unavailable right now." : relatedIds ? "No similar videos for that filter." : "Finding similar videos…"}
+          </p>
         ) : null}
       </aside>
     </div>

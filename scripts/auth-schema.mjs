@@ -54,6 +54,11 @@ const statements = [
   `alter table account enable row level security`,
   `alter table verification enable row level security`,
   `alter table videos add column if not exists playback text`,
+  `create extension if not exists vector with schema extensions`,
+  `alter table videos add column if not exists thumbnail_embedding extensions.vector(512)`,
+  `comment on column videos.thumbnail_embedding is 'L2-normalized CLIP ViT-B/32 image embedding from Xenova/clip-vit-base-patch32'`,
+  `create index if not exists videos_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops)`,
+  `create index if not exists videos_visible_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where unlisted = false and topic is null`,
 ];
 
 function loadEnv(text) {

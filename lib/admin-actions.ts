@@ -1,12 +1,13 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
 import type { OverlayPart } from "@/lib/videos";
+import { clipImageEmbedding } from "../scripts/clip-embedding";
 
 const sources = ["feed", "explore", "channel", "short"] as const;
 const aligns = ["left", "center", "right"] as const;
@@ -53,6 +54,7 @@ function dbMessage(error: unknown) {
   if (code === "23505") {
     const constraint = postgresField(error, "constraint_name") ?? "";
     if (constraint.includes("email")) return "A record with that email already exists.";
+    if (constraint.includes("thumbnail")) return "That thumbnail is already used by another video.";
     return "A record with that slug or handle already exists.";
   }
   if (code === "23503") return "Another record still uses this one. Delete or reassign those first.";
@@ -63,6 +65,14 @@ function dbMessage(error: unknown) {
 
 function bail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+async function embeddingFor(thumbnail: string, back: string) {
+  try {
+    return await clipImageEmbedding(thumbnail);
+  } catch {
+    bail(back, "Could not embed that thumbnail.");
+  }
 }
 
 function refresh() {
@@ -218,13 +228,24 @@ function channelValues(formData: FormData, back: string) {
   return { id, slug, name, handle, avatar, banner, bannerTitle, tagline, bio, about, subscribers, videoCount, ownerId };
 }
 
+async function requireUniqueThumbnail(thumbnail: string, back: string, exceptId?: string) {
+  const match = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(exceptId ? and(eq(videos.thumbnail, thumbnail), ne(videos.id, exceptId)) : eq(videos.thumbnail, thumbnail))
+    .limit(1);
+  if (match.length > 0) bail(back, "That thumbnail is already used by another video.");
+}
+
 export async function createVideo(formData: FormData) {
   await requireAdmin();
   const parsed = videoValues(formData, "/admin/videos");
   const { id: _id, ...insertValues } = parsed;
+  await requireUniqueThumbnail(insertValues.thumbnail, "/admin/videos");
+  const thumbnailEmbedding = await embeddingFor(insertValues.thumbnail, "/admin/videos");
   let id = "";
   try {
-    const [created] = await db.insert(videos).values(insertValues).returning({ id: videos.id });
+    const [created] = await db.insert(videos).values({ ...insertValues, thumbnailEmbedding }).returning({ id: videos.id });
     id = created?.id ?? "";
   } catch (error) {
     bail("/admin/videos", dbMessage(error));
@@ -241,8 +262,17 @@ export async function updateVideo(formData: FormData) {
   const parsed = videoValues(formData, back);
   if (!parsed.id) bail("/admin/videos", "Missing video id.");
   const { id: videoId, ...rest } = parsed;
+  await requireUniqueThumbnail(rest.thumbnail, back, videoId);
+  const [current] = await db
+    .select({ thumbnail: videos.thumbnail, thumbnailEmbedding: videos.thumbnailEmbedding })
+    .from(videos)
+    .where(eq(videos.id, videoId));
+  const thumbnailEmbedding =
+    current && current.thumbnail === rest.thumbnail && current.thumbnailEmbedding
+      ? current.thumbnailEmbedding
+      : await embeddingFor(rest.thumbnail, back);
   try {
-    await db.update(videos).set(rest).where(eq(videos.id, videoId));
+    await db.update(videos).set({ ...rest, thumbnailEmbedding }).where(eq(videos.id, videoId));
   } catch (error) {
     bail(back, dbMessage(error));
   }

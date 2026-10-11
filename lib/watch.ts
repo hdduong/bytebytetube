@@ -123,28 +123,3 @@ export function formatCount(value: number) {
   return String(value);
 }
 
-const featuredRecommendationIds = [
-  "brighter-tomorrow",
-  "worth-the-hype",
-  "pure-adrenaline",
-  "must-watch",
-  "its-the-people",
-  "five-scifi",
-];
-
-export function recommendedVideos(video: Video, catalog: Video[], filter: "all" | "same" | "channel") {
-  const others = catalog.filter((item) => item.id !== video.id && !item.topic);
-  if (filter === "channel") return others.filter((item) => item.channel === video.channel);
-  const listed = others.filter((item) => !item.unlisted);
-  if (filter === "same") {
-    return listed.filter((item) => (video.topic ? item.topic === video.topic : item.genre === video.genre));
-  }
-  if (video.id === "scifi-done-right") {
-    return featuredRecommendationIds
-      .map((id) => listed.find((item) => item.id === id))
-      .filter((item): item is Video => Boolean(item));
-  }
-  const same = listed.filter((item) => item.genre && item.genre === video.genre);
-  const rest = listed.filter((item) => item.genre !== video.genre);
-  return [...same, ...rest].slice(0, 8);
-}
