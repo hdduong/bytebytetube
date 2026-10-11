@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
 import { channelSlug, type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
@@ -138,6 +138,9 @@ export function HomeFeed({
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>(initialLikedIds);
   const [recommendedIds, setRecommendedIds] = useState<string[]>(initialRecommendedIds);
+  const likeTicket = useRef(0);
+  const likeChain = useRef(Promise.resolve());
+  const intendedLikes = useRef(new Map<string, boolean>());
   const [activeId, setActiveId] = useState<string | null>(
     initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
   );
@@ -196,24 +199,48 @@ export function HomeFeed({
     setSearchError(false);
   }
 
-  async function toggleLike(video: Video) {
-    const nextLiked = !likedIds.includes(video.id);
+  function toggleLike(video: Video) {
+    const known = intendedLikes.current.has(video.id) ? intendedLikes.current.get(video.id)! : likedIds.includes(video.id);
+    const desired = !known;
+    intendedLikes.current.set(video.id, desired);
     setLikeError(null);
-    setLikedIds((current) => toggleId(current, video.id));
-    const result = await setVideoLike(video.id, nextLiked);
-    if (result.status === "signin") {
-      setLikedIds((current) => toggleId(current, video.id));
-      const returnTo = `${pathname}${window.location.search}`;
-      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
-      return;
-    }
-    if (result.status !== "ok") {
-      setLikedIds((current) => toggleId(current, video.id));
-      setLikeError("That like didn't save. Try again.");
-      return;
-    }
-    setLikedIds(result.likedIds);
-    setRecommendedIds(result.recommendedIds);
+    setLikedIds((current) =>
+      desired ? (current.includes(video.id) ? current : [...current, video.id]) : current.filter((id) => id !== video.id),
+    );
+    const ticket = ++likeTicket.current;
+    likeChain.current = likeChain.current
+      .then(async () => {
+        if (intendedLikes.current.get(video.id) !== desired) return;
+        const result = await setVideoLike(video.id, desired);
+        if (likeTicket.current !== ticket || intendedLikes.current.get(video.id) !== desired) return;
+        if (result.status === "signin") {
+          intendedLikes.current.delete(video.id);
+          setLikedIds((current) =>
+            desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
+          );
+          router.push(`/login?next=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
+          return;
+        }
+        if (result.status !== "ok") {
+          intendedLikes.current.delete(video.id);
+          setLikedIds((current) =>
+            desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
+          );
+          setLikeError("That like didn't save. Try again.");
+          return;
+        }
+        intendedLikes.current.delete(video.id);
+        setLikedIds(result.likedIds);
+        setRecommendedIds(result.recommendedIds);
+      })
+      .catch(() => {
+        if (likeTicket.current !== ticket) return;
+        intendedLikes.current.delete(video.id);
+        setLikedIds((current) =>
+          desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
+        );
+        setLikeError("That like didn't save. Try again.");
+      });
   }
 
   useEffect(() => {

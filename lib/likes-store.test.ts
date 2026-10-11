@@ -19,8 +19,9 @@ test("likes stay with the user who saved them and drive recommendations", async 
   await loadEnv();
   const { eq, inArray, sql } = await import("drizzle-orm");
   const { users, videoLikes, videos } = await import("../drizzle/schema");
-  const { db } = await import("./db");
+  const { db, closeDatabase } = await import("./db");
   const { likedSlugsForUser, recommendedSlugsForUser } = await import("./likes-data");
+  try {
   const catalog = await db
     .select({ id: videos.id, slug: videos.slug })
     .from(videos)
@@ -67,6 +68,7 @@ test("likes stay with the user who saved them and drive recommendations", async 
       .where(eq(videoLikes.userId, left.id));
     assert.equal(leftover.length, 0);
   }
-  const { closeDatabase } = await import("./db");
-  await closeDatabase();
+  } finally {
+    await closeDatabase();
+  }
 });
