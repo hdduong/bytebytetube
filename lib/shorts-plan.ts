@@ -15,14 +15,11 @@ export function neighborLimit(raw = process.env.SHORTS_NEIGHBORS): number {
 }
 
 export function orderedUnique(values: string[]) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    if (seen.has(value)) continue;
-    seen.add(value);
-    result.push(value);
-  }
-  return result;
+  const lastIndex = new Map<string, number>();
+  values.forEach((value, index) => {
+    lastIndex.set(value, index);
+  });
+  return values.filter((value, index) => lastIndex.get(value) === index);
 }
 
 /** At most three tries: every exclusion, then only the newer half, then none. */

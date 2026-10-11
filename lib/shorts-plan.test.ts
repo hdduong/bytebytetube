@@ -54,4 +54,5 @@ test("requests reject oversized or malformed scopes", () => {
   assert.equal(parseShortsRequest({ anchor: "x".repeat(121) }), null);
   assert.equal(parseShortsRequest({ anchor: "bad\0slug" }), null);
   assert.equal(parseShortsRequest({ anchor: "the-chase", exclude: ["older", "older"], count: 2 })?.exclude.length, 1);
+  assert.deepEqual(parseShortsRequest({ exclude: ["history", "queued", "history"] })?.exclude, ["queued", "history"]);
 });

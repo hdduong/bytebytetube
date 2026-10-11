@@ -38,55 +38,44 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   `;
 }
 
-function seekKey() {
-  const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-  let value = "";
-  for (let index = 0; index < 12; index += 1) {
-    value += alphabet[Math.floor(Math.random() * alphabet.length)] ?? "a";
-  }
-  return value;
-}
-
-async function randomShorts(exclude: string[], anchor: string | null, limit: number, embeddedOnly: boolean) {
-  const start = seekKey();
+async function randomShorts(exclude: string[], anchor: string | null, _limit: number, embeddedOnly: boolean) {
   const rows = await db.execute<{ slug: string }>(sql`
-    select slug from (
-      (
-        select slug
-        from videos
-        where ${shortFilter(exclude, anchor, embeddedOnly)}
-          and slug >= ${start}
-        order by slug
-        limit ${limit}
-      )
-      union all
-      (
-        select slug
-        from videos
-        where ${shortFilter(exclude, anchor, embeddedOnly)}
-          and slug < ${start}
-        order by slug
-        limit ${limit}
-      )
-    ) wrapped
-    limit ${limit}
+    with eligible as (
+      select slug,
+        row_number() over (order by slug) as n,
+        count(*) over () as total
+      from videos
+      where ${shortFilter(exclude, anchor, embeddedOnly)}
+    ),
+    choice as (
+      select 1 + floor(random() * max(total))::int as n
+      from eligible
+    )
+    select eligible.slug
+    from eligible
+    join choice on eligible.n = choice.n
+    limit 1
   `);
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
 }
 
 async function nearestShorts(anchor: string, limit: number) {
-  const rows = await db.execute<{ slug: string }>(sql`
-    select slug
-    from videos
-    where source = 'short'
-      and thumbnail_embedding is not null
-      and char_length(slug) <= ${SLUG_LIMIT}
-      and slug <> ${anchor}
-    order by thumbnail_embedding <=> (
-      select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
-    )
-    limit ${limit}
-  `);
+  const breadth = Math.max(40, Math.floor(limit));
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql.raw(`set local hnsw.ef_search = ${breadth}`));
+    return tx.execute<{ slug: string }>(sql`
+      select slug
+      from videos
+      where source = 'short'
+        and thumbnail_embedding is not null
+        and char_length(slug) <= ${SLUG_LIMIT}
+        and slug <> ${anchor}
+      order by thumbnail_embedding <=> (
+        select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
+      )
+      limit ${limit}
+    `);
+  });
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
 }
 
