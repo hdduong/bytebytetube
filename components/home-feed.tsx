@@ -4,7 +4,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
-import { channelSlug, type ChannelProfile } from "@/lib/channel";
+import { type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
@@ -155,13 +155,13 @@ export function HomeFeed({
 
   function openChannel(name: string) {
     const known = profiles.find((profile) => profile.slug === name || profile.name === name);
-    const slug = known?.slug ?? channelSlug(name);
-    const path = `/channel/${slug}`;
-    if (!known || pathname !== path) {
+    if (!known) return;
+    const path = `/channel/${known.slug}`;
+    if (pathname !== path) {
       router.push(path);
       return;
     }
-    setChannel(slug);
+    setChannel(known.slug);
     setLibrary("home");
     setExplore(null);
     setChip("All");
