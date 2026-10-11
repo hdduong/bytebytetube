@@ -46,13 +46,27 @@ async function randomShorts(exclude: string[], anchor: string | null, limit: num
   `);
   const total = Number([...counted][0]?.total ?? 0);
   if (total === 0) return [];
-  const start = Math.floor(Math.random() * Math.max(total - limit + 1, 1));
+  const start = Math.floor(Math.random() * total);
+  const filter = shortFilter(exclude, anchor, embeddedOnly);
   const rows = await db.execute<{ slug: string }>(sql`
-    select slug
-    from videos
-    where ${shortFilter(exclude, anchor, embeddedOnly)}
-    order by slug
-    offset ${start}
+    select slug from (
+      (
+        select slug
+        from videos
+        where ${filter}
+        order by slug
+        offset ${start}
+        limit ${limit}
+      )
+      union all
+      (
+        select slug
+        from videos
+        where ${filter}
+        order by slug
+        limit ${limit}
+      )
+    ) wrapped
     limit ${limit}
   `);
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
@@ -130,9 +144,12 @@ export async function nextShorts(input?: unknown): Promise<ShortsPage> {
   const request = parseShortsRequest(input);
   if (!request) return { status: "error" };
   try {
-    if (request.anchor && (await shortVector(request.anchor)) === "missing") return { status: "error" };
-    const slugs = await chooseBatch(request);
+    const anchorKnown = !request.anchor || (await shortVector(request.anchor)) !== "missing";
+    const slugs = await chooseBatch(
+      anchorKnown ? request : { exclude: request.exclude, count: request.count },
+    );
     if (!request.anchor && slugs.length === 0) return { status: "empty" };
+    if (!anchorKnown && slugs.length === 0) return { status: "empty" };
     return {
       status: "ok",
       videos: await videosBySlugs(slugs),

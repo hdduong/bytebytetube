@@ -170,7 +170,6 @@ function publicVideo(row: Omit<typeof videos.$inferSelect, "thumbnailEmbedding">
     viewCount: _viewCount,
     recency: _recency,
     sortOrder: _sortOrder,
-    channelSlug: _slug,
     likeCount: _likeCount,
     ...item
   } = stored;

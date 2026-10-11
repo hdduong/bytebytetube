@@ -327,7 +327,7 @@ function ShortsReel({
               )}
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-6 left-4 right-16 text-white">
-                <button type="button" onClick={() => onChannel(item.video.channel)} className="text-[14px] font-semibold">
+                <button type="button" onClick={() => onChannel(item.video.channelSlug || item.video.channel)} className="text-[14px] font-semibold">
                   {item.video.channel}
                 </button>
                 <p className="mt-1 text-[16px] font-medium leading-snug">{item.video.title}</p>

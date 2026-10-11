@@ -60,6 +60,7 @@ export type Video = {
   live?: boolean;
   duration: string;
   channel: string;
+  channelSlug?: string;
   avatar: string;
   views: string;
   uploaded: string;

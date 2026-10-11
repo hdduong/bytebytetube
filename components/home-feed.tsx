@@ -154,10 +154,10 @@ export function HomeFeed({
   }, [activeId]);
 
   function openChannel(name: string) {
-    const slug = channelSlug(name);
-    if (!profiles.some((profile) => profile.slug === slug)) return;
+    const known = profiles.find((profile) => profile.slug === name || profile.name === name);
+    const slug = known?.slug ?? channelSlug(name);
     const path = `/channel/${slug}`;
-    if (pathname !== path) {
+    if (!known || pathname !== path) {
       router.push(path);
       return;
     }
