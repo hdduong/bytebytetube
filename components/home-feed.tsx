@@ -138,7 +138,7 @@ export function HomeFeed({
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>(initialLikedIds);
   const [recommendedIds, setRecommendedIds] = useState<string[]>(initialRecommendedIds);
-  const likeTicket = useRef(0);
+  const likeGeneration = useRef(new Map<string, number>());
   const likeChain = useRef(Promise.resolve());
   const intendedLikes = useRef(new Map<string, boolean>());
   const [activeId, setActiveId] = useState<string | null>(
@@ -203,42 +203,53 @@ export function HomeFeed({
     const known = intendedLikes.current.has(video.id) ? intendedLikes.current.get(video.id)! : likedIds.includes(video.id);
     const desired = !known;
     intendedLikes.current.set(video.id, desired);
+    const generation = (likeGeneration.current.get(video.id) ?? 0) + 1;
+    likeGeneration.current.set(video.id, generation);
     setLikeError(null);
     setLikedIds((current) =>
       desired ? (current.includes(video.id) ? current : [...current, video.id]) : current.filter((id) => id !== video.id),
     );
-    const ticket = ++likeTicket.current;
+
+    const stillCurrent = () =>
+      likeGeneration.current.get(video.id) === generation && intendedLikes.current.get(video.id) === desired;
+
+    const revert = () => {
+      if (!stillCurrent()) return;
+      intendedLikes.current.delete(video.id);
+      setLikedIds((current) =>
+        desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
+      );
+    };
+
     likeChain.current = likeChain.current
       .then(async () => {
-        if (intendedLikes.current.get(video.id) !== desired) return;
+        if (!stillCurrent()) return;
         const result = await setVideoLike(video.id, desired);
-        if (likeTicket.current !== ticket || intendedLikes.current.get(video.id) !== desired) return;
+        if (!stillCurrent()) return;
         if (result.status === "signin") {
-          intendedLikes.current.delete(video.id);
-          setLikedIds((current) =>
-            desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
-          );
+          revert();
           router.push(`/login?next=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
           return;
         }
         if (result.status !== "ok") {
-          intendedLikes.current.delete(video.id);
-          setLikedIds((current) =>
-            desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
-          );
+          revert();
           setLikeError("That like didn't save. Try again.");
           return;
         }
         intendedLikes.current.delete(video.id);
-        setLikedIds(result.likedIds);
+        setLikedIds(() => {
+          const next = new Set(result.likedIds);
+          for (const [id, want] of intendedLikes.current) {
+            if (want) next.add(id);
+            else next.delete(id);
+          }
+          return [...next];
+        });
         setRecommendedIds(result.recommendedIds);
       })
       .catch(() => {
-        if (likeTicket.current !== ticket) return;
-        intendedLikes.current.delete(video.id);
-        setLikedIds((current) =>
-          desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
-        );
+        if (!stillCurrent()) return;
+        revert();
         setLikeError("That like didn't save. Try again.");
       });
   }
