@@ -141,6 +141,14 @@ export function HomeFeed({
   const likeGeneration = useRef(new Map<string, number>());
   const likeChain = useRef(Promise.resolve());
   const intendedLikes = useRef(new Map<string, boolean>());
+  const accountMark = `${initialLikedIds.join("\n")}\n${initialRecommendedIds.join("\n")}`;
+  const [seenAccount, setSeenAccount] = useState(accountMark);
+  if (accountMark !== seenAccount) {
+    setSeenAccount(accountMark);
+    setLikedIds(initialLikedIds);
+    setRecommendedIds(initialRecommendedIds);
+    intendedLikes.current.clear();
+  }
   const [activeId, setActiveId] = useState<string | null>(
     initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
   );

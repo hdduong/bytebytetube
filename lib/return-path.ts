@@ -40,5 +40,5 @@ export function safeAdminPath(value: string | undefined) {
 }
 
 export function safeNextPath(value: string | undefined) {
-  return localPath(value) ?? "/admin";
+  return localPath(value) ?? "/";
 }
