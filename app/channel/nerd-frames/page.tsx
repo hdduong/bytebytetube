@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
-import { viewerLibrary } from "@/lib/likes";
+import { viewerLikes } from "@/lib/likes";
 import { channelCatalog, loadLibrary } from "@/lib/library";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,13 +20,12 @@ export default async function NerdFramesPage({
 }) {
   const params = await searchParams;
   const initialVideoId = typeof params.v === "string" ? params.v : null;
-  const [data, viewer] = await Promise.all([loadLibrary(), viewerLibrary()]);
+  const [data, likedIds] = await Promise.all([loadLibrary(), viewerLikes()]);
   if (!data.profiles.some((profile) => profile.slug === "nerd-frames")) notFound();
   return (
     <HomeFeed
       videos={channelCatalog(data)}
-      initialLikedIds={viewer.likedIds}
-      initialRecommendedIds={viewer.recommendedIds}
+      initialLikedIds={likedIds}
       profiles={data.profiles}
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}

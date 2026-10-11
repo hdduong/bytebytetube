@@ -18,6 +18,12 @@ async function sessionUserId() {
   return session?.user.id ?? null;
 }
 
+export async function viewerLikes() {
+  const userId = await sessionUserId();
+  if (!userId) return [] as string[];
+  return likedSlugsForUser(userId);
+}
+
 export async function viewerLibrary() {
   const userId = await sessionUserId();
   if (!userId) return { likedIds: [] as string[], recommendedIds: [] as string[] };
