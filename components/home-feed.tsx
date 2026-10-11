@@ -231,12 +231,13 @@ export function HomeFeed({
           router.push(`/login?next=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
           return;
         }
-        if (result.status !== "ok") {
+        if (result.status === "error") {
           revert();
           setLikeError("That like didn't save. Try again.");
           return;
         }
         intendedLikes.current.delete(video.id);
+        if (result.status === "saved") return;
         setLikedIds(() => {
           const next = new Set(result.likedIds);
           for (const [id, want] of intendedLikes.current) {
@@ -245,7 +246,7 @@ export function HomeFeed({
           }
           return [...next];
         });
-        setRecommendedIds(result.recommendedIds);
+        if (result.recommendedIds !== null) setRecommendedIds(result.recommendedIds);
       })
       .catch(() => {
         if (!stillCurrent()) return;

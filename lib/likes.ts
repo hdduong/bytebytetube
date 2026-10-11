@@ -9,7 +9,8 @@ import { validSlug } from "@/lib/like-taste";
 import { likedSlugsForUser, recommendedSlugsForUser, writeVideoLike } from "@/lib/likes-data";
 
 type LikeResult =
-  | { status: "ok"; likedIds: string[]; recommendedIds: string[] }
+  | { status: "ok"; likedIds: string[]; recommendedIds: string[] | null }
+  | { status: "saved" }
   | { status: "signin" }
   | { status: "error" };
 
@@ -39,15 +40,20 @@ export async function setVideoLike(slug: unknown, liked: unknown): Promise<LikeR
   try {
     const [video] = await db.select({ id: videos.id }).from(videos).where(eq(videos.slug, slug)).limit(1);
     if (!video) return { status: "error" };
-    if (liked) {
-      await writeVideoLike(userId, video.id, true);
-    } else {
-      await writeVideoLike(userId, video.id, false);
-    }
-    const likedIds = await likedSlugsForUser(userId);
-    const recommended = await recommendedSlugsForUser(userId);
-    return { status: "ok", likedIds, recommendedIds: recommended ?? [] };
+    await writeVideoLike(userId, video.id, liked);
   } catch {
     return { status: "error" };
+  }
+  try {
+    const likedIds = await likedSlugsForUser(userId);
+    let recommendedIds: string[] | null = null;
+    try {
+      recommendedIds = (await recommendedSlugsForUser(userId)) ?? [];
+    } catch {
+      recommendedIds = null;
+    }
+    return { status: "ok", likedIds, recommendedIds };
+  } catch {
+    return { status: "saved" };
   }
 }
