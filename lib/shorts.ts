@@ -38,31 +38,33 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   `;
 }
 
+function seekKey() {
+  const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+  let value = "";
+  for (let index = 0; index < 12; index += 1) {
+    value += alphabet[Math.floor(Math.random() * alphabet.length)] ?? "a";
+  }
+  return value;
+}
+
 async function randomShorts(exclude: string[], anchor: string | null, limit: number, embeddedOnly: boolean) {
-  const counted = await db.execute<{ total: number | string }>(sql`
-    select count(*)::int as total
-    from videos
-    where ${shortFilter(exclude, anchor, embeddedOnly)}
-  `);
-  const total = Number([...counted][0]?.total ?? 0);
-  if (total === 0) return [];
-  const start = Math.floor(Math.random() * total);
-  const filter = shortFilter(exclude, anchor, embeddedOnly);
+  const start = seekKey();
   const rows = await db.execute<{ slug: string }>(sql`
     select slug from (
       (
         select slug
         from videos
-        where ${filter}
+        where ${shortFilter(exclude, anchor, embeddedOnly)}
+          and slug >= ${start}
         order by slug
-        offset ${start}
         limit ${limit}
       )
       union all
       (
         select slug
         from videos
-        where ${filter}
+        where ${shortFilter(exclude, anchor, embeddedOnly)}
+          and slug < ${start}
         order by slug
         limit ${limit}
       )
