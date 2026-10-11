@@ -136,7 +136,12 @@ async function generateStill(key: string, prompt: string) {
 }
 
 async function main() {
-  loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+  try {
+    loadEnv(await readFile(path.join(process.cwd(), ".env"), "utf8"));
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
   const key = process.env.FAL_KEY;
   const connectionString = process.env.DATABASE_URL?.replace(":6543/", ":5432/");
   if (!key) throw new Error("FAL_KEY is not set");

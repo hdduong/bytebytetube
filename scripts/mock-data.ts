@@ -517,15 +517,17 @@ async function main() {
   const refreshed: string[] = [];
 
   const seenThumbs = new Set<string>();
+  const usedThumbs = new Set<string>();
   for (const video of videoRows) {
     const localThumb = video.thumbnail ?? "";
     const slug = video.slug ?? "";
     const keptThumb = existingThumbs.get(slug);
     const duplicate = Boolean(localThumb) && !localThumb.startsWith("https://") && seenThumbs.has(localThumb);
     if (localThumb) seenThumbs.add(localThumb);
-    if (keptThumb && !refreshMedia) {
+    const keptIsShared = Boolean(keptThumb) && usedThumbs.has(keptThumb ?? "");
+    if (keptThumb && !refreshMedia && !keptIsShared) {
       video.thumbnail = keptThumb;
-    } else if (duplicate) {
+    } else if (duplicate || keptIsShared) {
       if (!process.env.FAL_KEY) {
         throw new Error(`FAL_KEY is required so ${video.slug ?? "a video"} does not reuse ${localThumb}`);
       }
@@ -538,6 +540,7 @@ async function main() {
     } else {
       video.thumbnail = await hostImage(localThumb);
     }
+    usedThumbs.add(video.thumbnail);
     video.avatar = await hostImage(video.avatar);
     const kept = existingPlayback.get(slug);
     if (kept && !refreshMedia) {
