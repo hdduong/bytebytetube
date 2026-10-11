@@ -121,7 +121,7 @@ function RecommendedRun({
       }
       if (result.status === "empty") {
         doneRef.current = true;
-        setPhase("empty");
+        setPhase(itemsRef.current.length === 0 ? "empty" : "ready");
         return;
       }
       const added = result.videos.map((video) => {
