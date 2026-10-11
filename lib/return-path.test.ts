@@ -5,6 +5,7 @@ import { safeAdminPath, safeNextPath } from "./return-path";
 test("return paths stay on this site", () => {
   assert.equal(safeNextPath("/shorts"), "/shorts");
   assert.equal(safeNextPath("/?q=R%26B&v=clip"), "/?q=R%26B&v=clip");
+  assert.equal(safeNextPath("/?q=100%25&v=clip"), "/?q=100%25&v=clip");
   assert.equal(safeNextPath("/channel/frame-rate"), "/channel/frame-rate");
   assert.equal(safeNextPath(undefined), "/");
   assert.equal(safeNextPath("https://evil.example"), "/");

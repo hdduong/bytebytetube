@@ -15,7 +15,7 @@ function decodedPath(value: string) {
       if (next === current) return current;
       current = next;
     } catch {
-      return null;
+      return current;
     }
   }
   return current;
