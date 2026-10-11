@@ -72,8 +72,12 @@ export function WatchView({
   const [subscribed, setSubscribed] = useState<Record<string, boolean>>({});
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
-  const [relatedIds, setRelatedIds] = useState<string[] | null>(null);
-  const [relatedError, setRelatedError] = useState(false);
+  const [relatedResult, setRelatedResult] = useState<{
+    videoId: string;
+    filter: "all" | "same" | "channel";
+    ids: string[] | null;
+    error: boolean;
+  } | null>(null);
   const [sort, setSort] = useState<"newest" | "top">("newest");
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [draft, setDraft] = useState("");
@@ -135,20 +139,23 @@ export function WatchView({
   }, [playing, length, speed, video]);
 
   useEffect(() => {
-    setRelatedIds(null);
-    setRelatedError(false);
     let cancel = false;
     relatedByThumbnail(video.id, recFilter)
       .then((ids) => {
-        if (!cancel) setRelatedIds(ids);
+        if (!cancel) setRelatedResult({ videoId: video.id, filter: recFilter, ids, error: false });
       })
       .catch(() => {
-        if (!cancel) setRelatedError(true);
+        if (!cancel) setRelatedResult({ videoId: video.id, filter: recFilter, ids: null, error: true });
       });
     return () => {
       cancel = true;
     };
   }, [video.id, recFilter]);
+
+  const relatedReady =
+    relatedResult && relatedResult.videoId === video.id && relatedResult.filter === recFilter ? relatedResult : null;
+  const relatedIds = relatedReady && !relatedReady.error ? relatedReady.ids : null;
+  const relatedError = relatedReady?.error ?? false;
 
   const likeTotal = likeCount + (liked ? 1 : 0);
   const isSubscribed = Boolean(subscribed[video.channel]);

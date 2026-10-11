@@ -76,7 +76,8 @@ async function main() {
     console.log(
       `done embedded=${summary?.embedded ?? 0} total=${summary?.total ?? 0} dimensions=${summary?.dimensions ?? "none"} index=${index?.name ?? "missing"} visible=${visibleIndex?.name ?? "missing"} thumbnailKey=${thumbnailKey?.name ?? "missing"}`,
     );
-    if (!summary || summary.embedded !== summary.total || summary.dimensions !== 512 || !index?.name || !visibleIndex?.name || !thumbnailKey?.name) {
+    const dimensionsOk = summary != null && (summary.total === 0 || summary.dimensions === 512);
+    if (!summary || summary.embedded !== summary.total || !dimensionsOk || !index?.name || !visibleIndex?.name || !thumbnailKey?.name) {
       process.exitCode = 1;
     }
   } finally {
