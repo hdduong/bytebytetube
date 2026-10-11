@@ -54,6 +54,7 @@ function dbMessage(error: unknown) {
   if (code === "23505") {
     const constraint = postgresField(error, "constraint_name") ?? "";
     if (constraint.includes("email")) return "A record with that email already exists.";
+    if (constraint.includes("thumbnail")) return "That thumbnail is already used by another video.";
     return "A record with that slug or handle already exists.";
   }
   if (code === "23503") return "Another record still uses this one. Delete or reassign those first.";

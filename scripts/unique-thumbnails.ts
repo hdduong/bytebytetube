@@ -151,6 +151,7 @@ async function main() {
     const extras = [...groups.values()].flatMap((group) => group.slice(1));
     console.log(`videos=${rows.length} sharedGroups=${[...groups.values()].filter((group) => group.length > 1).length} toReplace=${extras.length}`);
     if (extras.length === 0) {
+      await sql.unsafe(`create unique index if not exists videos_thumbnail_key on videos (thumbnail)`);
       console.log("done remainingShared=0");
       return;
     }
@@ -181,6 +182,7 @@ async function main() {
     `;
     console.log(`done remainingShared=${left?.extras ?? "?"}`);
     if ((left?.extras ?? 1) > 0) process.exitCode = 1;
+    else await sql.unsafe(`create unique index if not exists videos_thumbnail_key on videos (thumbnail)`);
   } finally {
     await sql.end();
   }

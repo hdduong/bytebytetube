@@ -87,7 +87,11 @@ export const videos = pgTable(
     playback: text("playback"),
     thumbnailEmbedding: vector512("thumbnail_embedding"),
   },
-  (table) => [index("videos_channel_id_idx").on(table.channelId), index("videos_source_idx").on(table.source)],
+  (table) => [
+    index("videos_channel_id_idx").on(table.channelId),
+    index("videos_source_idx").on(table.source),
+    uniqueIndex("videos_thumbnail_key").on(table.thumbnail),
+  ],
 );
 
 export const comments = pgTable(
