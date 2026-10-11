@@ -109,6 +109,7 @@ export function HomeFeed({
   initialRecommendedIds = [],
   initialViewerId = null,
   initialShortId = null,
+  initialQuery = "",
 }: {
   videos: Video[];
   profiles: ChannelProfile[];
@@ -124,10 +125,11 @@ export function HomeFeed({
   initialRecommendedIds?: string[];
   initialViewerId?: string | null;
   initialShortId?: string | null;
+  initialQuery?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
   const [trackedSearch, setTrackedSearch] = useState("");
@@ -240,8 +242,20 @@ export function HomeFeed({
         if (!stillCurrent()) return;
         if (result.status === "signin") {
           revert();
-          const here = library === "shorts" ? `${pathname}?v=${encodeURIComponent(video.id)}` : `${pathname}${window.location.search}`;
-          router.push(`/login?next=${encodeURIComponent(here)}`);
+          const params = new URLSearchParams();
+          if (library === "shorts") {
+            params.set("v", video.id);
+          } else {
+            params.set("v", video.id);
+            if (pathname === "/") {
+              if (library !== "home") params.set("library", library);
+              if (explore) params.set("explore", explore);
+              if (chip !== "All") params.set("chip", chip);
+              const needle = query.trim();
+              if (needle) params.set("q", needle.slice(0, 80));
+            }
+          }
+          router.push(`/login?next=${encodeURIComponent(`${pathname}?${params.toString()}`)}`);
           return;
         }
         if (result.status === "error") {

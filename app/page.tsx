@@ -14,6 +14,7 @@ export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{
+    q?: string | string[];
     v?: string | string[];
     chip?: string | string[];
     explore?: string | string[];
@@ -41,6 +42,7 @@ export default async function Home({
       initialChip={(chips as readonly string[]).includes(chip ?? "") ? (chip as Chip) : "All"}
       initialExplore={(exploreTopics as readonly string[]).includes(explore ?? "") ? (explore as ExploreTopic) : null}
       initialLibrary={(libraries as readonly string[]).includes(library ?? "") ? (library as LibraryView) : "home"}
+      initialQuery={one(params.q) ?? ""}
     />
   );
 }
