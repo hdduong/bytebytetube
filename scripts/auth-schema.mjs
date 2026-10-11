@@ -59,6 +59,14 @@ const statements = [
   `comment on column videos.thumbnail_embedding is 'L2-normalized CLIP ViT-B/32 image embedding from Xenova/clip-vit-base-patch32'`,
   `create index if not exists videos_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops)`,
   `create index if not exists videos_visible_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where unlisted = false and topic is null`,
+  `create table if not exists video_likes (
+    user_id uuid not null references users (id) on delete cascade,
+    video_id uuid not null references videos (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key (user_id, video_id)
+  )`,
+  `create index if not exists video_likes_video_id_idx on video_likes (video_id)`,
+  `alter table video_likes enable row level security`,
 ];
 
 function loadEnv(text) {

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signUp } from "@/lib/auth-actions";
 import { auth } from "@/lib/auth";
-import { safeAdminPath } from "@/lib/admin-session";
+import { safeNextPath } from "@/lib/admin-session";
 
 const control = "h-10 w-full rounded-lg border border-line bg-transparent px-3 text-[14px] outline-none focus:border-ink";
 const submit = "h-10 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip";
@@ -14,7 +14,7 @@ export default async function SignUpPage({
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const params = await searchParams;
-  const next = safeAdminPath(params.next);
+  const next = safeNextPath(params.next);
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect(`/login?next=${encodeURIComponent(next)}`);
 

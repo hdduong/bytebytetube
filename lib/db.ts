@@ -17,3 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(client, { schema });
+
+export function closeDatabase() {
+  return client.end({ timeout: 5 });
+}

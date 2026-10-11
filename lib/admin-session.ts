@@ -7,6 +7,13 @@ export function safeAdminPath(value: string | undefined) {
   return "/admin";
 }
 
+export function safeNextPath(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || value.includes("://")) {
+    return "/admin";
+  }
+  return value.slice(0, 200);
+}
+
 export async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login?next=/admin");

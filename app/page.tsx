@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
+import { viewerLibrary } from "@/lib/likes";
 import { channelCatalog, loadLibrary } from "@/lib/library";
 import { chips, exploreTopics, type Chip, type ExploreTopic, type LibraryView } from "@/lib/videos";
 
@@ -25,10 +26,12 @@ export default async function Home({
   const explore = one(params.explore);
   const library = one(params.library);
   if (library === "shorts") redirect("/shorts");
-  const data = await loadLibrary();
+  const [data, viewer] = await Promise.all([loadLibrary(), viewerLibrary()]);
   return (
     <HomeFeed
       videos={channelCatalog(data)}
+      initialLikedIds={viewer.likedIds}
+      initialRecommendedIds={viewer.recommendedIds}
       profiles={data.profiles}
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}

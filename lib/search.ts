@@ -87,15 +87,15 @@ function acquire() {
   }
   if (waiters.length >= QUEUE_LIMIT) return Promise.resolve(false);
   return new Promise<boolean>((resolve) => {
-    let timer: ReturnType<typeof setTimeout>;
     const waiter = {
+      timer: undefined as ReturnType<typeof setTimeout> | undefined,
       start() {
-        clearTimeout(timer);
+        clearTimeout(this.timer);
         searchesInFlight += 1;
         resolve(true);
       },
     };
-    timer = setTimeout(() => {
+    waiter.timer = setTimeout(() => {
       const index = waiters.indexOf(waiter);
       if (index >= 0) waiters.splice(index, 1);
       resolve(false);
