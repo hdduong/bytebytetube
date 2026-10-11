@@ -120,7 +120,7 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
+  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; nonce: number; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
   const [trackedSearch, setTrackedSearch] = useState("");
   const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
@@ -219,7 +219,7 @@ export function HomeFeed({
             setSearchError(true);
             return;
           }
-          setSearchResult({ query: needle, scope, scored: result.scored });
+          setSearchResult({ query: needle, scope, nonce: searchNonce, scored: result.scored });
         })
         .catch(() => {
           if (!cancel) setSearchError(true);
@@ -246,7 +246,10 @@ export function HomeFeed({
   const needle = query.trim();
   const failedSearch = needle.length > 0 && searchError;
   const ranked =
-    needle && searchResult?.query === needle && searchResult.scope === scopeKey(searchScope)
+    needle &&
+    searchResult?.query === needle &&
+    searchResult.scope === scopeKey(searchScope) &&
+    searchResult.nonce === searchNonce
       ? searchResult.scored
       : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);

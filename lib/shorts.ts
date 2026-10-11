@@ -9,6 +9,8 @@ import {
   neighborLimit,
   parseShortsRequest,
   pickFromNeighbors,
+  SLUG_LIMIT,
+  validSlug,
   type ShortsRequest,
 } from "./shorts-plan";
 import type { Video } from "./videos";
@@ -31,6 +33,7 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
     source = 'short'
     and (${anchor === null} or slug <> ${anchor ?? ""})
     and (${embeddedOnly} = false or thumbnail_embedding is not null)
+    and char_length(slug) <= ${SLUG_LIMIT}
     and ${exclusion}
   `;
 }
@@ -52,7 +55,7 @@ async function randomShorts(exclude: string[], anchor: string | null, limit: num
     offset ${start}
     limit ${limit}
   `);
-  return [...rows].map((row) => String(row.slug));
+  return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
 }
 
 async function nearestShorts(anchor: string, limit: number) {
@@ -61,13 +64,14 @@ async function nearestShorts(anchor: string, limit: number) {
     from videos
     where source = 'short'
       and thumbnail_embedding is not null
+      and char_length(slug) <= ${SLUG_LIMIT}
       and slug <> ${anchor}
     order by thumbnail_embedding <=> (
       select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
     )
     limit ${limit}
   `);
-  return [...rows].map((row) => String(row.slug));
+  return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
 }
 
 async function shortVector(slug: string) {
