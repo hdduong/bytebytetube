@@ -1,18 +1,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { safeAdminPath, safeNextPath } from "@/lib/return-path";
 
-export function safeAdminPath(value: string | undefined) {
-  if (value && value.startsWith("/admin") && !value.startsWith("//")) return value;
-  return "/admin";
-}
-
-export function safeNextPath(value: string | undefined) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || value.includes("://")) {
-    return "/admin";
-  }
-  return value.slice(0, 200);
-}
+export { safeAdminPath, safeNextPath };
 
 export async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() });
