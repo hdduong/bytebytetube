@@ -107,6 +107,12 @@ export function ChannelView({
   const [tabQuery, setTabQuery] = useState("");
   const [tabResult, setTabResult] = useState<{ query: string; channel: string; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
+  const [trackedSearch, setTrackedSearch] = useState("");
+  const searchTrack = `${tabQuery}\n${profile.name}`;
+  if (searchTrack !== trackedSearch) {
+    setTrackedSearch(searchTrack);
+    setSearchError(false);
+  }
   const [subscribed, setSubscribed] = useState(false);
   const [more, setMore] = useState(false);
 
@@ -135,10 +141,7 @@ export function ChannelView({
           if (!cancel) setSearchError(true);
         });
     };
-    const timer = window.setTimeout(() => {
-      setSearchError(false);
-      run();
-    }, 400);
+    const timer = window.setTimeout(run, 400);
     return () => {
       cancel = true;
       window.clearTimeout(timer);

@@ -20,7 +20,7 @@ test("likes stay with the user who saved them and drive recommendations", async 
   const { eq, inArray, sql } = await import("drizzle-orm");
   const { users, videoLikes, videos } = await import("../drizzle/schema");
   const { db } = await import("./db");
-  const { likedSlugsForUser, recommendedSlugsForUser } = await import("./likes");
+  const { likedSlugsForUser, recommendedSlugsForUser } = await import("./likes-data");
   const catalog = await db
     .select({ id: videos.id, slug: videos.slug })
     .from(videos)

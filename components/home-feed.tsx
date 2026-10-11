@@ -126,6 +126,7 @@ export function HomeFeed({
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
+  const [trackedSearch, setTrackedSearch] = useState("");
   const [likeError, setLikeError] = useState<string | null>(null);
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
@@ -189,6 +190,12 @@ export function HomeFeed({
     return { unlisted: false, topic: null };
   }, [channel, profiles, explore, library, chip, savedIds, likedIds]);
 
+  const searchTrack = `${query}\n${scopeKey(searchScope)}`;
+  if (searchTrack !== trackedSearch) {
+    setTrackedSearch(searchTrack);
+    setSearchError(false);
+  }
+
   async function toggleLike(video: Video) {
     const nextLiked = !likedIds.includes(video.id);
     setLikeError(null);
@@ -235,10 +242,7 @@ export function HomeFeed({
           if (!cancel) setSearchError(true);
         });
     };
-    const timer = window.setTimeout(() => {
-      setSearchError(false);
-      run();
-    }, 400);
+    const timer = window.setTimeout(run, 400);
     return () => {
       cancel = true;
       window.clearTimeout(timer);

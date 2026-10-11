@@ -19,6 +19,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const next = safeNextPath(params.next);
   const session = await auth.api.getSession({ headers: await headers() });
+  if (session && !next.startsWith("/admin")) redirect(next);
   if (session?.user.admin) redirect(next);
   const [admin] = session
     ? await db.select({ id: users.id }).from(users).where(eq(users.admin, true)).limit(1)
