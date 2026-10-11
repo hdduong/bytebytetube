@@ -504,11 +504,13 @@ async function main() {
     channel.banner = await hostImage(channel.banner);
   }
   const existingPlayback = new Map<string, string>();
-  const saved = await client<{ slug: string; playback: string | null }[]>`
-    select slug, playback from videos where playback is not null
+  const existingThumbs = new Map<string, string>();
+  const saved = await client<{ slug: string; playback: string | null; thumbnail: string | null }[]>`
+    select slug, playback, thumbnail from videos
   `;
   for (const row of saved) {
     if (row.playback) existingPlayback.set(row.slug, row.playback);
+    if (row.thumbnail?.startsWith("https://")) existingThumbs.set(row.slug, row.thumbnail);
   }
   const refreshMedia = process.argv.includes("--refresh-media");
   const remembered = await readSavedPlayback();
@@ -517,22 +519,26 @@ async function main() {
   const seenThumbs = new Set<string>();
   for (const video of videoRows) {
     const localThumb = video.thumbnail ?? "";
-    if (localThumb && !localThumb.startsWith("https://") && seenThumbs.has(localThumb)) {
+    const slug = video.slug ?? "";
+    const keptThumb = existingThumbs.get(slug);
+    const duplicate = Boolean(localThumb) && !localThumb.startsWith("https://") && seenThumbs.has(localThumb);
+    if (localThumb) seenThumbs.add(localThumb);
+    if (keptThumb && !refreshMedia) {
+      video.thumbnail = keptThumb;
+    } else if (duplicate) {
       if (!process.env.FAL_KEY) {
         throw new Error(`FAL_KEY is required so ${video.slug ?? "a video"} does not reuse ${localThumb}`);
       }
       video.thumbnail = await generateUniqueThumbnail(process.env.FAL_KEY, {
-        slug: video.slug ?? "video",
+        slug: slug || "video",
         title: video.title,
         genre: video.genre ?? null,
         source: video.source ?? "feed",
       });
     } else {
-      if (localThumb) seenThumbs.add(localThumb);
       video.thumbnail = await hostImage(localThumb);
     }
     video.avatar = await hostImage(video.avatar);
-    const slug = video.slug ?? "";
     const kept = existingPlayback.get(slug);
     if (kept && !refreshMedia) {
       video.playback = kept;
