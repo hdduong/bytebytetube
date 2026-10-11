@@ -2,7 +2,7 @@ const DEFAULT_NEIGHBORS = 10;
 const DEFAULT_BATCH = 3;
 
 export function validSlug(value: unknown): value is string {
-  return typeof value === "string" && value.length >= 1 && !value.includes("\0");
+  return typeof value === "string" && value.length >= 1 && value.length <= 120 && !value.includes("\0");
 }
 
 export function neighborLimit(raw = process.env.SHORTS_NEIGHBORS): number {

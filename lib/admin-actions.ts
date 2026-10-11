@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
 import { db } from "@/lib/db";
+import { validSlug } from "@/lib/shorts-plan";
 import type { OverlayPart } from "@/lib/videos";
 import { clipImageEmbedding } from "../scripts/clip-embedding";
 
@@ -311,6 +312,7 @@ function videoValues(formData: FormData, back: string) {
   if (!slug || !channelId || !channelName || !title || !duration || !views || !uploaded || !thumbnail || !avatar) {
     bail(back, "Slug, channel, title, duration, views, uploaded, thumbnail, and avatar are required.");
   }
+  if (!validSlug(slug)) bail(back, "Use a slug of 1 to 120 characters.");
   if (!sources.includes(source as (typeof sources)[number])) bail(back, "Pick a source.");
   if (!aligns.includes(align as (typeof aligns)[number])) bail(back, "Pick an alignment.");
   if (!shelves.includes(shelf as (typeof shelves)[number])) bail(back, "Pick a shelf.");
