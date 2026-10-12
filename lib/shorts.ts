@@ -61,11 +61,33 @@ async function randomShorts(exclude: string[], anchor: string | null, _limit: nu
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
 }
 
+let iterativeScan: Promise<boolean> | null = null;
+
+function canIterativeScan() {
+  iterativeScan ??= (async () => {
+    try {
+      const rows = await db.execute<{ version: string }>(sql`
+        select extversion as version
+        from pg_extension
+        where extname = 'vector'
+        limit 1
+      `);
+      const version = String([...rows][0]?.version ?? "0");
+      const [major = 0, minor = 0] = version.split(".").map((part) => Number(part) || 0);
+      return major > 0 || minor >= 8;
+    } catch {
+      return false;
+    }
+  })();
+  return iterativeScan;
+}
+
 async function nearestShorts(anchor: string, limit: number) {
   const breadth = Math.max(40, Math.floor(limit));
+  const scan = await canIterativeScan();
   const rows = await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`set local hnsw.ef_search = ${breadth}`));
-    await tx.execute(sql.raw(`set local hnsw.iterative_scan = strict_order`));
+    if (scan) await tx.execute(sql.raw(`set local hnsw.iterative_scan = strict_order`));
     return tx.execute<{ slug: string }>(sql`
       select slug
       from videos
@@ -145,9 +167,11 @@ export async function nextShorts(input?: unknown): Promise<ShortsPage> {
     );
     if (!request.anchor && slugs.length === 0) return { status: "empty" };
     if (!anchorKnown && slugs.length === 0) return { status: "empty" };
+    const videos = await videosBySlugs(slugs);
+    if (slugs.length > 0 && videos.length === 0) return { status: "error" };
     return {
       status: "ok",
-      videos: await videosBySlugs(slugs),
+      videos,
       complete: slugs.length < request.count,
     };
   } catch {

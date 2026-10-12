@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
+import { safeChannelSlug } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { validSlug } from "@/lib/shorts-plan";
 import type { OverlayPart } from "@/lib/videos";
@@ -226,6 +227,7 @@ function channelValues(formData: FormData, back: string) {
   if (!slug || !name || !handle || !avatar || !banner || !bannerTitle || !tagline || !bio || !about || !subscribers || !ownerId) {
     return null;
   }
+  if (!safeChannelSlug(slug)) bail(back, "Use a channel slug that stays in one path segment.");
   return { id, slug, name, handle, avatar, banner, bannerTitle, tagline, bio, about, subscribers, videoCount, ownerId };
 }
 

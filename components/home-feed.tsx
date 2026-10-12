@@ -4,11 +4,11 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
-import { type ChannelProfile } from "@/lib/channel";
+import { safeChannelSlug, type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
-import { ShortsFeed } from "@/components/shorts-feed";
+import { ShortsFeed, type ChannelTarget } from "@/components/shorts-feed";
 import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
@@ -153,31 +153,34 @@ export function HomeFeed({
     window.scrollTo(0, 0);
   }, [activeId]);
 
-  function openChannel(name: string) {
-    if (name.startsWith("channel-slug:")) {
-      let slug = name.slice("channel-slug:".length);
-      try {
-        slug = decodeURIComponent(slug);
-      } catch {
-        return;
-      }
-      if (!slug || slug === "." || slug === ".." || /[/?#\\%]/.test(slug)) return;
-      router.push(`/channel/${encodeURIComponent(slug)}`);
-      return;
-    }
-    const known = profiles.find((profile) => profile.name === name);
-    if (!known) return;
-    const path = `/channel/${known.slug}`;
+  function showChannel(slug: string) {
+    const safe = safeChannelSlug(slug);
+    if (!safe) return;
+    const path = `/channel/${encodeURIComponent(safe)}`;
     if (pathname !== path) {
       router.push(path);
       return;
     }
-    setChannel(known.slug);
+    setChannel(safe);
     setLibrary("home");
     setExplore(null);
     setChip("All");
     openVideo(null);
     setMobileOpen(false);
+  }
+
+  function openChannel(name: string) {
+    const known = profiles.find((profile) => profile.name === name);
+    if (!known) return;
+    showChannel(known.slug);
+  }
+
+  function openShortChannel(target: ChannelTarget) {
+    if ("slug" in target) {
+      showChannel(target.slug);
+      return;
+    }
+    openChannel(target.name);
   }
 
   const searchScope = useMemo((): SearchScope => {
@@ -679,7 +682,7 @@ export function HomeFeed({
                 phone={phone}
                 likedIds={liked}
                 onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
-                onChannel={openChannel}
+                onChannel={openShortChannel}
               />
             )
           ) : (
@@ -687,7 +690,7 @@ export function HomeFeed({
               phone={phone}
               likedIds={liked}
               onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
-              onChannel={openChannel}
+              onChannel={openShortChannel}
             />
           )
         ) : null}

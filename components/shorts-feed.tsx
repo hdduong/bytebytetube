@@ -14,6 +14,8 @@ const BATCH = 3;
 
 type Occurrence = { key: string; video: Video };
 
+export type ChannelTarget = { slug: string } | { name: string };
+
 function stableItems(videos: Video[]): Occurrence[] {
   const seen = new Map<string, number>();
   return videos.map((video) => {
@@ -34,7 +36,7 @@ export function ShortsFeed({
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
-  onChannel: (channel: string) => void;
+  onChannel: (target: ChannelTarget) => void;
 }) {
   if (videos) {
     return (
@@ -54,7 +56,7 @@ function RecommendedShorts(props: {
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
-  onChannel: (channel: string) => void;
+  onChannel: (target: ChannelTarget) => void;
 }) {
   const [attempt, setAttempt] = useState(0);
   return <RecommendedRun key={attempt} {...props} onRetry={() => setAttempt((current) => current + 1)} />;
@@ -70,7 +72,7 @@ function RecommendedRun({
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
-  onChannel: (channel: string) => void;
+  onChannel: (target: ChannelTarget) => void;
   onRetry: () => void;
 }) {
   const [items, setItems] = useState<Occurrence[]>([]);
@@ -219,7 +221,7 @@ function ShortsReel({
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
-  onChannel: (channel: string) => void;
+  onChannel: (target: ChannelTarget) => void;
   tailError?: boolean;
   onRetryTail?: () => void;
   onActive?: (key: string) => void;
@@ -327,7 +329,7 @@ function ShortsReel({
               )}
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-6 left-4 right-16 text-white">
-                <button type="button" onClick={() => onChannel(item.video.channelSlug ? `channel-slug:${item.video.channelSlug}` : item.video.channel)} className="text-[14px] font-semibold">
+                <button type="button" onClick={() => onChannel(item.video.channelSlug ? { slug: item.video.channelSlug } : { name: item.video.channel })} className="text-[14px] font-semibold">
                   {item.video.channel}
                 </button>
                 <p className="mt-1 text-[16px] font-medium leading-snug">{item.video.title}</p>
