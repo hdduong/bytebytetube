@@ -59,7 +59,6 @@ const statements = [
   `comment on column videos.thumbnail_embedding is 'L2-normalized CLIP ViT-B/32 image embedding from Xenova/clip-vit-base-patch32'`,
   `create index if not exists videos_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops)`,
   `create index if not exists videos_visible_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where unlisted = false and topic is null`,
-  `create index if not exists videos_short_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where source = 'short'`,
   `drop index if exists videos_short_thumbnail_embedding_idx`,
   `create index if not exists videos_short_visible_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where source = 'short' and unlisted = false and char_length(slug) <= 120`,
   `create index if not exists videos_short_slug_idx on videos (slug) where source = 'short'`,

@@ -71,7 +71,7 @@ async function nearestShorts(anchor: string, limit: number) {
   const breadth = Math.max(40, Math.floor(limit));
   const rows = await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`set local hnsw.ef_search = ${breadth}`));
-    await tx.execute(sql.raw(`set local hnsw.iterative_scan = relaxed_order`));
+    await tx.execute(sql.raw(`set local hnsw.iterative_scan = strict_order`));
     return tx.execute<{ slug: string }>(sql`
       select slug
       from videos
