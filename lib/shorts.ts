@@ -31,6 +31,7 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   const exclusion = exclude.length === 0 ? sql`true` : excluded(exclude);
   return sql`
     source = 'short'
+    and unlisted = false
     and char_length(slug) <= ${SLUG_LIMIT}
     and (${anchor === null} or slug <> ${anchor ?? ""})
     and (${embeddedOnly} = false or thumbnail_embedding is not null)
@@ -38,22 +39,45 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   `;
 }
 
+let sampleReady: Promise<void> | null = null;
+
+function ensureSampleKey() {
+  sampleReady ??= (async () => {
+    await db.execute(sql`alter table videos add column if not exists sample_key double precision`);
+    await db.execute(sql`update videos set sample_key = random() where sample_key is null`);
+    await db.execute(sql`alter table videos alter column sample_key set default random()`);
+    await db.execute(sql`create index if not exists videos_short_sample_key_idx on videos (sample_key) where source = 'short' and unlisted = false`);
+  })().catch((error: unknown) => {
+    sampleReady = null;
+    throw error;
+  });
+  return sampleReady;
+}
+
 async function randomShorts(exclude: string[], anchor: string | null, _limit: number, embeddedOnly: boolean) {
+  await ensureSampleKey();
+  const start = Math.random();
+  const filter = shortFilter(exclude, anchor, embeddedOnly);
   const rows = await db.execute<{ slug: string }>(sql`
-    with eligible as (
-      select slug,
-        row_number() over (order by slug) as n,
-        count(*) over () as total
-      from videos
-      where ${shortFilter(exclude, anchor, embeddedOnly)}
-    ),
-    choice as (
-      select 1 + floor(random() * max(total))::int as n
-      from eligible
-    )
-    select eligible.slug
-    from eligible
-    join choice on eligible.n = choice.n
+    select slug from (
+      (
+        select slug
+        from videos
+        where ${filter}
+          and sample_key >= ${start}
+        order by sample_key
+        limit 1
+      )
+      union all
+      (
+        select slug
+        from videos
+        where ${filter}
+          and sample_key < ${start}
+        order by sample_key
+        limit 1
+      )
+    ) wrapped
     limit 1
   `);
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
@@ -67,6 +91,7 @@ async function nearestShorts(anchor: string, limit: number) {
       select slug
       from videos
       where source = 'short'
+        and unlisted = false
         and thumbnail_embedding is not null
         and char_length(slug) <= ${SLUG_LIMIT}
         and slug <> ${anchor}
@@ -83,7 +108,7 @@ async function shortVector(slug: string) {
   const rows = await db.execute<{ ready: boolean }>(sql`
     select thumbnail_embedding is not null as ready
     from videos
-    where slug = ${slug} and source = 'short'
+    where slug = ${slug} and source = 'short' and unlisted = false
     limit 1
   `);
   const row = [...rows][0];

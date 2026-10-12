@@ -4,7 +4,9 @@ const DEFAULT_BATCH = 3;
 export const SLUG_LIMIT = 120;
 
 export function validSlug(value: unknown): value is string {
-  return typeof value === "string" && value.length >= 1 && value.length <= SLUG_LIMIT && !value.includes("\0");
+  if (typeof value !== "string" || value.includes("\0")) return false;
+  const length = Array.from(value).length;
+  return length >= 1 && length <= SLUG_LIMIT;
 }
 
 export function neighborLimit(raw = process.env.SHORTS_NEIGHBORS): number {

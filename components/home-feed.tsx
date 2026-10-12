@@ -155,8 +155,8 @@ export function HomeFeed({
 
   function openChannel(name: string) {
     const known = profiles.find((profile) => profile.slug === name || profile.name === name);
-    const slug = known?.slug ?? (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) ? name : "");
-    if (!slug) return;
+    const slug = known?.slug ?? name;
+    if (!slug || /[/?#\\]/.test(slug)) return;
     const path = `/channel/${slug}`;
     if (!known || pathname !== path) {
       router.push(path);
