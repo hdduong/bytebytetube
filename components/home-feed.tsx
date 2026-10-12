@@ -155,9 +155,16 @@ export function HomeFeed({
 
   function openChannel(name: string) {
     const known = profiles.find((profile) => profile.slug === name || profile.name === name);
-    const slug = known?.slug ?? name;
-    if (!slug || /[/?#\\]/.test(slug)) return;
-    const path = `/channel/${slug}`;
+    let slug = known?.slug ?? name;
+    if (!known) {
+      try {
+        slug = decodeURIComponent(slug);
+      } catch {
+        return;
+      }
+      if (!slug || slug === "." || slug === ".." || /[/?#\\%]/.test(slug)) return;
+    }
+    const path = `/channel/${encodeURIComponent(slug)}`;
     if (!known || pathname !== path) {
       router.push(path);
       return;

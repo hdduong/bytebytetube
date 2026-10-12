@@ -40,28 +40,22 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
 }
 
 async function randomShorts(exclude: string[], anchor: string | null, _limit: number, embeddedOnly: boolean) {
-  const start = Math.random();
-  const filter = shortFilter(exclude, anchor, embeddedOnly);
   const rows = await db.execute<{ slug: string }>(sql`
-    select slug from (
-      (
-        select slug
-        from videos
-        where ${filter}
-          and sample_key >= ${start}
-        order by sample_key
-        limit 1
-      )
-      union all
-      (
-        select slug
-        from videos
-        where ${filter}
-          and sample_key < ${start}
-        order by sample_key
-        limit 1
-      )
-    ) wrapped
+    with eligible as (
+      select slug,
+        row_number() over (order by sample_key) as n,
+        count(*) over () as total
+      from videos
+      where ${shortFilter(exclude, anchor, embeddedOnly)}
+        and sample_key is not null
+    ),
+    choice as (
+      select 1 + floor(random() * max(total))::int as n
+      from eligible
+    )
+    select eligible.slug
+    from eligible
+    join choice on eligible.n = choice.n
     limit 1
   `);
   return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
