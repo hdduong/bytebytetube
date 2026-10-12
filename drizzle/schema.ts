@@ -1,4 +1,5 @@
-import { boolean, customType, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, customType, doublePrecision, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { OverlayPart } from "@/lib/videos";
 
 function when(name: string) {
@@ -86,6 +87,7 @@ export const videos = pgTable(
     sortOrder: integer("sort_order").notNull(),
     playback: text("playback"),
     thumbnailEmbedding: vector512("thumbnail_embedding"),
+    sampleKey: doublePrecision("sample_key").default(sql`random()`),
   },
   (table) => [
     index("videos_channel_id_idx").on(table.channelId),

@@ -1,0 +1,180 @@
+"use server";
+
+import { sql, type SQL } from "drizzle-orm";
+import { db } from "./db";
+import { videosBySlugs } from "./library";
+import {
+  chooseFromTop,
+  exclusionLadder,
+  neighborLimit,
+  parseShortsRequest,
+  pickFromNeighbors,
+  SLUG_LIMIT,
+  validSlug,
+  type ShortsRequest,
+} from "./shorts-plan";
+import type { Video } from "./videos";
+
+type ShortsPage =
+  | { status: "ok"; videos: Video[]; complete: boolean }
+  | { status: "empty" }
+  | { status: "error" };
+
+function excluded(exclude: string[]): SQL {
+  return sql`slug not in (${sql.join(
+    exclude.map((value) => sql`${value}`),
+    sql`, `,
+  )})`;
+}
+
+function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boolean) {
+  const exclusion = exclude.length === 0 ? sql`true` : excluded(exclude);
+  return sql`
+    source = 'short'
+    and unlisted = false
+    and char_length(slug) <= ${SLUG_LIMIT}
+    and (${anchor === null} or slug <> ${anchor ?? ""})
+    and (${embeddedOnly} = false or thumbnail_embedding is not null)
+    and ${exclusion}
+  `;
+}
+
+async function randomShorts(exclude: string[], anchor: string | null, _limit: number, embeddedOnly: boolean) {
+  const rows = await db.execute<{ slug: string }>(sql`
+    with eligible as (
+      select slug,
+        row_number() over (order by sample_key) as n,
+        count(*) over () as total
+      from videos
+      where ${shortFilter(exclude, anchor, embeddedOnly)}
+        and sample_key is not null
+    ),
+    choice as (
+      select 1 + floor(random() * max(total))::int as n
+      from eligible
+    )
+    select eligible.slug
+    from eligible
+    join choice on eligible.n = choice.n
+    limit 1
+  `);
+  return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
+}
+
+let iterativeScan: Promise<boolean> | null = null;
+
+function canIterativeScan() {
+  iterativeScan ??= (async () => {
+    try {
+      const rows = await db.execute<{ version: string }>(sql`
+        select extversion as version
+        from pg_extension
+        where extname = 'vector'
+        limit 1
+      `);
+      const version = String([...rows][0]?.version ?? "0");
+      const [major = 0, minor = 0] = version.split(".").map((part) => Number(part) || 0);
+      return major > 0 || minor >= 8;
+    } catch {
+      return false;
+    }
+  })();
+  return iterativeScan;
+}
+
+async function nearestShorts(anchor: string, limit: number) {
+  const breadth = Math.max(40, Math.floor(limit));
+  const scan = await canIterativeScan();
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql.raw(`set local hnsw.ef_search = ${breadth}`));
+    if (scan) await tx.execute(sql.raw(`set local hnsw.iterative_scan = strict_order`));
+    return tx.execute<{ slug: string }>(sql`
+      select slug
+      from videos
+      where source = 'short'
+        and unlisted = false
+        and thumbnail_embedding is not null
+        and char_length(slug) <= ${SLUG_LIMIT}
+        and slug <> ${anchor}
+      order by thumbnail_embedding <=> (
+        select thumbnail_embedding from videos where slug = ${anchor} and source = 'short'
+      )
+      limit ${limit}
+    `);
+  });
+  return [...rows].map((row) => String(row.slug)).filter((slug) => validSlug(slug));
+}
+
+async function shortVector(slug: string) {
+  const rows = await db.execute<{ ready: boolean }>(sql`
+    select thumbnail_embedding is not null as ready
+    from videos
+    where slug = ${slug} and source = 'short' and unlisted = false
+    limit 1
+  `);
+  const row = [...rows][0];
+  if (!row) return "missing" as const;
+  return row.ready ? ("embedded" as const) : ("plain" as const);
+}
+
+async function pickStart(exclude: string[]) {
+  for (const step of exclusionLadder(exclude)) {
+    const embedded = await randomShorts(step, null, 1, true);
+    if (embedded[0]) return embedded[0];
+    const any = await randomShorts(step, null, 1, false);
+    if (any[0]) return any[0];
+  }
+  return null;
+}
+
+async function pickNeighbor(anchor: string, exclude: string[], count: number) {
+  const vector = await shortVector(anchor);
+  if (vector === "missing") return null;
+  if (vector === "embedded") {
+    const ordered = await nearestShorts(anchor, Math.min(200, count + exclude.length));
+    const pick = pickFromNeighbors(ordered, exclude, count, Math.random);
+    if (pick) return pick;
+  }
+  for (const step of exclusionLadder(exclude)) {
+    const pool = await randomShorts(step, anchor, count, false);
+    const pick = chooseFromTop(pool, Math.random);
+    if (pick) return pick;
+  }
+  return null;
+}
+
+async function chooseBatch(request: ShortsRequest) {
+  const count = neighborLimit();
+  const chosen: string[] = [];
+  let anchor = request.anchor ?? null;
+  for (let index = 0; index < request.count; index += 1) {
+    const exclude = [...request.exclude, ...chosen];
+    const next = anchor ? await pickNeighbor(anchor, exclude, count) : await pickStart(exclude);
+    if (!next) break;
+    chosen.push(next);
+    anchor = next;
+  }
+  return chosen;
+}
+
+export async function nextShorts(input?: unknown): Promise<ShortsPage> {
+  const request = parseShortsRequest(input);
+  if (!request) return { status: "error" };
+  try {
+    const anchorKnown = !request.anchor || (await shortVector(request.anchor)) !== "missing";
+    const slugs = await chooseBatch(
+      anchorKnown ? request : { exclude: request.exclude, count: request.count },
+    );
+    if (!request.anchor && slugs.length === 0) return { status: "empty" };
+    if (!anchorKnown && slugs.length === 0) return { status: "empty" };
+    const videos = await videosBySlugs(slugs);
+    if (slugs.length > 0 && videos.length === 0) return { status: "error" };
+    return {
+      status: "ok",
+      videos,
+      complete: slugs.length < request.count,
+    };
+  } catch {
+    return { status: "error" };
+  }
+}

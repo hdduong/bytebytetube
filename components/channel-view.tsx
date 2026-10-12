@@ -107,16 +107,18 @@ export function ChannelView({
   const [tabQuery, setTabQuery] = useState("");
   const [tabResult, setTabResult] = useState<{ query: string; channel: string; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
+  const [trackedSearch, setTrackedSearch] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const [more, setMore] = useState(false);
+  const searchTrack = `${tabQuery}\n${profile.name}`;
+  if (searchTrack !== trackedSearch) {
+    setTrackedSearch(searchTrack);
+    setSearchError(false);
+  }
 
   useEffect(() => {
     const needle = tabQuery.trim();
-    if (!needle) {
-      setSearchError(false);
-      return;
-    }
-    setSearchError(false);
+    if (!needle) return;
     let cancel = false;
     let retryTimer = 0;
     let attempt = 0;
@@ -151,6 +153,7 @@ export function ChannelView({
   const localQuery = tabQuery.trim();
   const tabRank =
     localQuery && tabResult?.query === localQuery && tabResult.channel === profile.name ? tabResult.scored : null;
+  const tabFailed = localQuery.length > 0 && searchError;
   const channelItems = [...profile.videos, ...profile.shorts, ...profile.live];
   const headerMatched = headerQuery ? withinMargin(channelItems, ranked) : null;
   const localMatched = localQuery ? withinMargin(channelItems, tabRank) : null;
@@ -290,7 +293,7 @@ export function ChannelView({
         <section>
           <h2 className="mb-3 text-[20px] font-bold">Videos</h2>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
+            <p className="py-16 text-muted">{searchFailed || tabFailed ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
               {videos.map((video) => (
@@ -343,7 +346,7 @@ export function ChannelView({
             })}
           </div>
           {videos.length === 0 ? (
-            <p className="py-16 text-muted">{searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
+            <p className="py-16 text-muted">{searchFailed || tabFailed ? "Search is unavailable right now." : waiting ? "Searching…" : "No videos match that search."}</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">
               {videos.map((video) => (
@@ -362,7 +365,7 @@ export function ChannelView({
       {tab === "Shorts" ? (
         shorts.length === 0 ? (
           <p className="py-16 text-muted">
-            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
+            {searchFailed || tabFailed ? "Search is unavailable right now." : waiting ? "Searching…" : profile.shorts.length === 0 ? "No shorts yet." : "No shorts match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 palm:grid-cols-4 desk:grid-cols-6">
@@ -376,7 +379,7 @@ export function ChannelView({
       {tab === "Live" ? (
         live.length === 0 ? (
           <p className="py-16 text-muted">
-            {searchFailed || searchError ? "Search is unavailable right now." : waiting ? "Searching…" : profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
+            {searchFailed || tabFailed ? "Search is unavailable right now." : waiting ? "Searching…" : profile.live.length === 0 ? "No live videos right now." : "No live videos match that search."}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 palm:grid-cols-2 desk:grid-cols-4">

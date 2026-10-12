@@ -189,6 +189,17 @@ export function channelSlug(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+export function safeChannelSlug(slug: string) {
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    return null;
+  }
+  if (!decoded || decoded === "." || decoded === ".." || /[/?#\\%]/.test(decoded)) return null;
+  return decoded;
+}
+
 function recencyFromUploaded(uploaded: string, fallback: number) {
   const match = uploaded.match(/(\d+)\s+(day|week|month)/i);
   if (!match) return fallback;

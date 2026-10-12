@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { account, channels, comments, users, videos } from "@/drizzle/schema";
 import { requireAdmin } from "@/lib/admin-session";
+import { safeChannelSlug } from "@/lib/channel";
 import { db } from "@/lib/db";
+import { validSlug } from "@/lib/shorts-plan";
 import type { OverlayPart } from "@/lib/videos";
 import { clipImageEmbedding } from "../scripts/clip-embedding";
 
@@ -225,6 +227,7 @@ function channelValues(formData: FormData, back: string) {
   if (!slug || !name || !handle || !avatar || !banner || !bannerTitle || !tagline || !bio || !about || !subscribers || !ownerId) {
     return null;
   }
+  if (!safeChannelSlug(slug)) bail(back, "Use a channel slug that stays in one path segment.");
   return { id, slug, name, handle, avatar, banner, bannerTitle, tagline, bio, about, subscribers, videoCount, ownerId };
 }
 
@@ -312,6 +315,7 @@ function videoValues(formData: FormData, back: string) {
     bail(back, "Slug, channel, title, duration, views, uploaded, thumbnail, and avatar are required.");
   }
   if (!sources.includes(source as (typeof sources)[number])) bail(back, "Pick a source.");
+  if (source === "short" && !validSlug(slug)) bail(back, "Use a Short slug of 1 to 120 characters.");
   if (!aligns.includes(align as (typeof aligns)[number])) bail(back, "Pick an alignment.");
   if (!shelves.includes(shelf as (typeof shelves)[number])) bail(back, "Pick a shelf.");
   let viewCount = 0;

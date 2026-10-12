@@ -4,11 +4,11 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
-import { channelSlug, type ChannelProfile } from "@/lib/channel";
+import { safeChannelSlug, type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
 import { Header } from "@/components/header";
 import { useLayoutMode } from "@/components/phone-layout";
-import { ShortsFeed } from "@/components/shorts-feed";
+import { ShortsFeed, type ChannelTarget } from "@/components/shorts-feed";
 import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
@@ -120,8 +120,9 @@ export function HomeFeed({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; scored: ScoredSlug[] } | null>(null);
+  const [searchResult, setSearchResult] = useState<{ query: string; scope: string; nonce: number; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
+  const [trackedSearch, setTrackedSearch] = useState("");
   const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
@@ -132,6 +133,7 @@ export function HomeFeed({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [searchNonce, setSearchNonce] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(
     initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
   );
@@ -151,20 +153,34 @@ export function HomeFeed({
     window.scrollTo(0, 0);
   }, [activeId]);
 
-  function openChannel(name: string) {
-    const slug = channelSlug(name);
-    if (!profiles.some((profile) => profile.slug === slug)) return;
-    const path = `/channel/${slug}`;
+  function showChannel(slug: string) {
+    const safe = safeChannelSlug(slug);
+    if (!safe) return;
+    const path = `/channel/${encodeURIComponent(safe)}`;
     if (pathname !== path) {
       router.push(path);
       return;
     }
-    setChannel(slug);
+    setChannel(safe);
     setLibrary("home");
     setExplore(null);
     setChip("All");
     openVideo(null);
     setMobileOpen(false);
+  }
+
+  function openChannel(name: string) {
+    const known = profiles.find((profile) => profile.name === name);
+    if (!known) return;
+    showChannel(known.slug);
+  }
+
+  function openShortChannel(target: ChannelTarget) {
+    if ("slug" in target) {
+      showChannel(target.slug);
+      return;
+    }
+    openChannel(target.name);
   }
 
   const searchScope = useMemo((): SearchScope => {
@@ -184,6 +200,12 @@ export function HomeFeed({
     return { unlisted: false, topic: null };
   }, [channel, profiles, explore, library, chip, savedIds, likedIds]);
 
+  const searchTrack = `${query}\n${scopeKey(searchScope)}\n${searchNonce}`;
+  if (searchTrack !== trackedSearch) {
+    setTrackedSearch(searchTrack);
+    setSearchError(false);
+  }
+
   useEffect(() => {
     const refresh = () => setTaste(loadTaste());
     refresh();
@@ -193,11 +215,7 @@ export function HomeFeed({
 
   useEffect(() => {
     const needle = query.trim();
-    if (!needle) {
-      setSearchError(false);
-      return;
-    }
-    setSearchError(false);
+    if (!needle) return;
     let cancel = false;
     let retryTimer = 0;
     let attempt = 0;
@@ -215,7 +233,7 @@ export function HomeFeed({
             setSearchError(true);
             return;
           }
-          setSearchResult({ query: needle, scope, scored: result.scored });
+          setSearchResult({ query: needle, scope, nonce: searchNonce, scored: result.scored });
         })
         .catch(() => {
           if (!cancel) setSearchError(true);
@@ -227,7 +245,7 @@ export function HomeFeed({
       window.clearTimeout(timer);
       window.clearTimeout(retryTimer);
     };
-  }, [query, searchScope]);
+  }, [query, searchScope, searchNonce]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -240,8 +258,12 @@ export function HomeFeed({
   }, []);
 
   const needle = query.trim();
+  const failedSearch = needle.length > 0 && searchError;
   const ranked =
-    needle && searchResult?.query === needle && searchResult.scope === scopeKey(searchScope)
+    needle &&
+    searchResult?.query === needle &&
+    searchResult.scope === scopeKey(searchScope) &&
+    searchResult.nonce === searchNonce
       ? searchResult.scored
       : null;
   const saved = useMemo(() => new Set(savedIds), [savedIds]);
@@ -472,7 +494,7 @@ export function HomeFeed({
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={searchError} onOpen={openVideo} />
+          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={failedSearch} onOpen={openVideo} />
         ) : null}
 
         {showHome ? (
@@ -513,7 +535,7 @@ export function HomeFeed({
               </h1>
               <p className="mt-1 text-[16px] text-muted">
                 {query.trim()
-                  ? searchError
+                  ? failedSearch
                     ? "Search is unavailable right now."
                     : ranked
                       ? `${filtered.length} ${filtered.length === 1 ? "review" : "reviews"}`
@@ -524,7 +546,7 @@ export function HomeFeed({
 
             {filtered.length === 0 ? (
               <p className="py-16 text-center text-muted">
-                {searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
+                {failedSearch ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}
               </p>
             ) : query.trim() ? (
               <VideoGrid
@@ -599,16 +621,16 @@ export function HomeFeed({
             <h1 className="text-[28px] font-bold">{explore}</h1>
             <p className="mb-6 mt-1 text-[16px] text-muted">
               {query.trim()
-                ? searchError
+                ? failedSearch
                   ? "Search is unavailable right now."
                   : ranked
                     ? `${exploreFeed.length} videos`
                     : "Searching…"
                 : exploreCopy[explore]}
             </p>
-            {query.trim() && (searchError || !ranked) ? (
+            {query.trim() && (failedSearch || !ranked) ? (
               <p className="py-16 text-muted">
-                {searchError ? "Search is unavailable right now." : "Searching…"}
+                {failedSearch ? "Search is unavailable right now." : "Searching…"}
               </p>
             ) : exploreFeed.length === 0 ? (
               <p className="py-16 text-muted">No videos match that search.</p>
@@ -627,22 +649,48 @@ export function HomeFeed({
         ) : null}
 
         {showShorts ? (
-          libraryVideos.length === 0 ? (
-            <div
-              className={cn(
-                "grid place-items-center px-6 text-center text-muted",
-                phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
-              )}
-            >
-              <p>{searchError ? "Search is unavailable right now." : query.trim() && !ranked ? "Searching…" : "No videos match that search."}</p>
-            </div>
+          query.trim() ? (
+            failedSearch || !ranked || libraryVideos.length === 0 ? (
+              <div
+                className={cn(
+                  "grid place-items-center px-6 text-center text-muted",
+                  phone ? "h-full" : "h-[calc(100dvh-3.5rem)]",
+                )}
+              >
+                <div>
+                  <p>
+                    {failedSearch
+                      ? "Search is unavailable right now."
+                      : !ranked
+                        ? "Searching…"
+                        : "No videos match that search."}
+                  </p>
+                  {failedSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchNonce((current) => current + 1)}
+                      className="mt-4 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink"
+                    >
+                      Try again
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <ShortsFeed
+                videos={libraryVideos}
+                phone={phone}
+                likedIds={liked}
+                onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                onChannel={openShortChannel}
+              />
+            )
           ) : (
             <ShortsFeed
-              videos={libraryVideos}
               phone={phone}
               likedIds={liked}
               onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
-              onChannel={openChannel}
+              onChannel={openShortChannel}
             />
           )
         ) : null}
@@ -663,9 +711,9 @@ export function HomeFeed({
                   ? "Reviews you saved to watch later"
                   : "Reviews you liked"}
             </p>
-            {query.trim() && (searchError || !ranked) ? (
+            {query.trim() && (failedSearch || !ranked) ? (
               <p className="py-16 text-muted">
-                {searchError ? "Search is unavailable right now." : "Searching…"}
+                {failedSearch ? "Search is unavailable right now." : "Searching…"}
               </p>
             ) : libraryVideos.length === 0 ? (
               <p className="py-16 text-muted">
