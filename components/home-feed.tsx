@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChannelView } from "@/components/channel-view";
 import { safeChannelSlug, type ChannelProfile } from "@/lib/channel";
 import { ChevronRightIcon } from "@/components/icons";
@@ -13,7 +13,7 @@ import { Sidebar } from "@/components/sidebar";
 import { VideoGrid } from "@/components/video-card";
 import { WatchView } from "@/components/watch-view";
 import { cn } from "@/lib/cn";
-import { loadTaste, recommendFromTaste, type TasteProfile } from "@/lib/preferences";
+import { setVideoLike } from "@/lib/likes";
 import { searchCatalog } from "@/lib/search";
 import { scopeKey, withinMargin, type ScoredSlug, type SearchScope } from "@/lib/similarity";
 import type { Comment } from "@/lib/watch";
@@ -105,6 +105,11 @@ export function HomeFeed({
   initialChip = "All",
   initialExplore = null,
   initialLibrary = "home",
+  initialLikedIds = [],
+  initialRecommendedIds = [],
+  initialViewerId = null,
+  initialShortId = null,
+  initialQuery = "",
 }: {
   videos: Video[];
   profiles: ChannelProfile[];
@@ -116,14 +121,19 @@ export function HomeFeed({
   initialChip?: Chip;
   initialExplore?: ExploreTopic | null;
   initialLibrary?: LibraryView;
+  initialLikedIds?: string[];
+  initialRecommendedIds?: string[];
+  initialViewerId?: string | null;
+  initialShortId?: string | null;
+  initialQuery?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [searchResult, setSearchResult] = useState<{ query: string; scope: string; nonce: number; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
   const [trackedSearch, setTrackedSearch] = useState("");
-  const [taste, setTaste] = useState<TasteProfile>({ scores: {}, opens: 0, watchSeconds: 0, last: null });
+  const [likeError, setLikeError] = useState<string | null>(null);
   const [chip, setChip] = useState<Chip>(initialChip);
   const [explore, setExplore] = useState<ExploreTopic | null>(initialExplore);
   const [channel, setChannel] = useState<string | null>(initialChannel);
@@ -132,7 +142,19 @@ export function HomeFeed({
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [likedIds, setLikedIds] = useState<string[]>(initialLikedIds);
+  const [recommendedIds, setRecommendedIds] = useState<string[]>(initialRecommendedIds);
+  const likeGeneration = useRef(new Map<string, number>());
+  const likeChain = useRef(Promise.resolve());
+  const intendedLikes = useRef(new Map<string, boolean>());
+  const accountMark = initialViewerId ?? "";
+  const [seenAccount, setSeenAccount] = useState(accountMark);
+  if (accountMark !== seenAccount) {
+    setSeenAccount(accountMark);
+    setLikedIds(initialLikedIds);
+    setRecommendedIds(initialRecommendedIds);
+    intendedLikes.current.clear();
+  }
   const [searchNonce, setSearchNonce] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(
     initialVideoId && videos.some((item) => item.id === initialVideoId) ? initialVideoId : null,
@@ -153,7 +175,7 @@ export function HomeFeed({
     window.scrollTo(0, 0);
   }, [activeId]);
 
-  function showChannel(slug: string) {
+  function openChannelBySlug(slug: string) {
     const safe = safeChannelSlug(slug);
     if (!safe) return;
     const path = `/channel/${encodeURIComponent(safe)}`;
@@ -172,12 +194,12 @@ export function HomeFeed({
   function openChannel(name: string) {
     const known = profiles.find((profile) => profile.name === name);
     if (!known) return;
-    showChannel(known.slug);
+    openChannelBySlug(known.slug);
   }
 
   function openShortChannel(target: ChannelTarget) {
     if ("slug" in target) {
-      showChannel(target.slug);
+      openChannelBySlug(target.slug);
       return;
     }
     openChannel(target.name);
@@ -206,12 +228,74 @@ export function HomeFeed({
     setSearchError(false);
   }
 
-  useEffect(() => {
-    const refresh = () => setTaste(loadTaste());
-    refresh();
-    window.addEventListener("cinematube-taste", refresh);
-    return () => window.removeEventListener("cinematube-taste", refresh);
-  }, []);
+  function toggleLike(video: Video) {
+    const known = intendedLikes.current.has(video.id) ? intendedLikes.current.get(video.id)! : likedIds.includes(video.id);
+    const desired = !known;
+    intendedLikes.current.set(video.id, desired);
+    const generation = (likeGeneration.current.get(video.id) ?? 0) + 1;
+    likeGeneration.current.set(video.id, generation);
+    setLikeError(null);
+    setLikedIds((current) =>
+      desired ? (current.includes(video.id) ? current : [...current, video.id]) : current.filter((id) => id !== video.id),
+    );
+
+    const stillCurrent = () =>
+      likeGeneration.current.get(video.id) === generation && intendedLikes.current.get(video.id) === desired;
+
+    const revert = () => {
+      if (!stillCurrent()) return;
+      intendedLikes.current.delete(video.id);
+      setLikedIds((current) =>
+        desired ? current.filter((id) => id !== video.id) : current.includes(video.id) ? current : [...current, video.id],
+      );
+    };
+
+    likeChain.current = likeChain.current
+      .then(async () => {
+        if (!stillCurrent()) return;
+        const result = await setVideoLike(video.id, desired);
+        if (!stillCurrent()) return;
+        if (result.status === "signin") {
+          revert();
+          const params = new URLSearchParams();
+          if (library === "shorts") {
+            params.set("v", video.id);
+          } else {
+            params.set("v", video.id);
+            if (pathname === "/") {
+              if (library !== "home") params.set("library", library);
+              if (explore) params.set("explore", explore);
+              if (chip !== "All") params.set("chip", chip);
+              const needle = query.trim();
+              if (needle) params.set("q", needle.slice(0, 80));
+            }
+          }
+          router.push(`/login?next=${encodeURIComponent(`${pathname}?${params.toString()}`)}`);
+          return;
+        }
+        if (result.status === "error") {
+          revert();
+          setLikeError("That like didn't save. Try again.");
+          return;
+        }
+        intendedLikes.current.delete(video.id);
+        if (result.status === "saved") return;
+        setLikedIds(() => {
+          const next = new Set(result.likedIds);
+          for (const [id, want] of intendedLikes.current) {
+            if (want) next.add(id);
+            else next.delete(id);
+          }
+          return [...next];
+        });
+        if (result.recommendedIds !== null) setRecommendedIds(result.recommendedIds);
+      })
+      .catch(() => {
+        if (!stillCurrent()) return;
+        revert();
+        setLikeError("That like didn't save. Try again.");
+      });
+  }
 
   useEffect(() => {
     const needle = query.trim();
@@ -374,7 +458,15 @@ export function HomeFeed({
   }
 
   const heading = headings[chip];
-  const forYou = recommendFromTaste(filtered, taste);
+  const forYouVideos = useMemo(() => {
+    const allowed = new Set(filtered.map((video) => video.id));
+    return recommendedIds
+      .filter((id) => allowed.has(id) && !liked.has(id))
+      .flatMap((id) => {
+        const video = videos.find((item) => item.id === id);
+        return video ? [video] : [];
+      });
+  }, [filtered, liked, recommendedIds, videos]);
   const fresh = filtered.filter((video) => video.shelf === "fresh");
   const popular = filtered.filter((video) => video.shelf === "popular");
   const channelProfile = channel ? (profiles.find((profile) => profile.slug === channel) ?? null) : null;
@@ -474,6 +566,11 @@ export function HomeFeed({
           !phone && !activeVideo && (desktopOpen ? "desk:pl-60" : "desk:pl-[72px]"),
         )}
       >
+        {likeError ? (
+          <p className="px-4 pt-4 text-[14px] text-danger" role="alert">
+            {likeError}
+          </p>
+        ) : null}
         {activeVideo ? (
           <div className="pt-4">
             <WatchView
@@ -488,7 +585,7 @@ export function HomeFeed({
               onOpen={(video) => openVideo(video.id)}
               onChannel={openChannel}
               onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-              onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+              onToggleLike={toggleLike}
             />
           </div>
         ) : null}
@@ -556,24 +653,22 @@ export function HomeFeed({
                 onOpen={(video) => openVideo(video.id)}
                 onChannel={openChannel}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                onToggleLike={toggleLike}
               />
             ) : (
               <>
-                {forYou.videos.length > 0 ? (
+                {forYouVideos.length > 0 ? (
                   <section className="mb-10">
                     <h2 className="text-[20px] font-bold">Recommended for you</h2>
-                    <p className="mb-4 mt-1 text-[14px] text-muted">
-                      Based on {forYou.top.map((dimension) => dimension.label).join(", ")}
-                    </p>
+                    <p className="mb-4 mt-1 text-[14px] text-muted">Based on videos you liked</p>
                     <VideoGrid
-                      videos={forYou.videos}
+                      videos={forYouVideos}
                       savedIds={saved}
                       likedIds={liked}
                       onOpen={(video) => openVideo(video.id)}
                       onChannel={openChannel}
                       onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                      onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                      onToggleLike={toggleLike}
                     />
                   </section>
                 ) : null}
@@ -585,7 +680,7 @@ export function HomeFeed({
                     onOpen={(video) => openVideo(video.id)}
                     onChannel={openChannel}
                     onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                    onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                    onToggleLike={toggleLike}
                   />
                 ) : null}
                 {popular.length > 0 ? (
@@ -607,7 +702,7 @@ export function HomeFeed({
                       onOpen={(video) => openVideo(video.id)}
                     onChannel={openChannel}
                       onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                      onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                      onToggleLike={toggleLike}
                     />
                   </section>
                 ) : null}
@@ -642,7 +737,7 @@ export function HomeFeed({
                 onOpen={(video) => openVideo(video.id)}
                     onChannel={openChannel}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                onToggleLike={toggleLike}
               />
             )}
           </section>
@@ -681,7 +776,8 @@ export function HomeFeed({
                 videos={libraryVideos}
                 phone={phone}
                 likedIds={liked}
-                onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                initialVideoId={initialShortId}
+                onLike={toggleLike}
                 onChannel={openShortChannel}
               />
             )
@@ -689,7 +785,8 @@ export function HomeFeed({
             <ShortsFeed
               phone={phone}
               likedIds={liked}
-              onLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+              initialVideo={videos.find((item) => item.id === initialShortId && item.source === "short") ?? null}
+              onLike={toggleLike}
               onChannel={openShortChannel}
             />
           )
@@ -733,7 +830,7 @@ export function HomeFeed({
                 onOpen={(video) => openVideo(video.id)}
                     onChannel={openChannel}
                 onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
-                onToggleLike={(video) => setLikedIds((current) => toggleId(current, video.id))}
+                onToggleLike={toggleLike}
               />
             )}
           </section>

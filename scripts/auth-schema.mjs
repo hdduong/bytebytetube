@@ -66,6 +66,14 @@ const statements = [
   `update videos set sample_key = random() where sample_key is null`,
   `alter table videos alter column sample_key set default random()`,
   `create index if not exists videos_short_sample_key_idx on videos (sample_key) where source = 'short' and unlisted = false`,
+  `create table if not exists video_likes (
+    user_id uuid not null references users (id) on delete cascade,
+    video_id uuid not null references videos (id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key (user_id, video_id)
+  )`,
+  `create index if not exists video_likes_video_id_idx on video_likes (video_id)`,
+  `alter table video_likes enable row level security`,
 ];
 
 function loadEnv(text) {

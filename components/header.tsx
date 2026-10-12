@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
@@ -31,6 +32,7 @@ export function Header({
   const inputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const { data: session } = authClient.useSession();
+  const router = useRouter();
   const restoreSearchFocus = useRef(false);
   const [panel, setPanel] = useState<"create" | "notifications" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -228,7 +230,9 @@ export function Header({
           {session ? (
             <button
               type="button"
-              onClick={() => void authClient.signOut()}
+              onClick={() => {
+                void authClient.signOut().then(() => router.refresh());
+              }}
               className="flex h-9 items-center rounded-full px-2 text-sm font-medium hover-wash"
             >
               Sign out

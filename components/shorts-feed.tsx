@@ -31,25 +31,32 @@ export function ShortsFeed({
   likedIds,
   onLike,
   onChannel,
+  initialVideoId = null,
+  initialVideo = null,
 }: {
   videos?: Video[];
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
   onChannel: (target: ChannelTarget) => void;
+  initialVideoId?: string | null;
+  initialVideo?: Video | null;
 }) {
   if (videos) {
+    const items = stableItems(videos);
     return (
       <ShortsReel
         phone={phone}
         likedIds={likedIds}
         onLike={onLike}
         onChannel={onChannel}
-        items={stableItems(videos)}
+        items={items}
+        initialKey={items.find((item) => item.video.id === initialVideoId)?.key}
       />
     );
   }
-  return <RecommendedShorts phone={phone} likedIds={likedIds} onLike={onLike} onChannel={onChannel} />;
+  const opening = initialVideo?.source === "short" ? initialVideo : null;
+  return <RecommendedShorts phone={phone} likedIds={likedIds} onLike={onLike} onChannel={onChannel} initialVideo={opening} />;
 }
 
 function RecommendedShorts(props: {
@@ -57,6 +64,7 @@ function RecommendedShorts(props: {
   likedIds: Set<string>;
   onLike: (video: Video) => void;
   onChannel: (target: ChannelTarget) => void;
+  initialVideo: Video | null;
 }) {
   const [attempt, setAttempt] = useState(0);
   return <RecommendedRun key={attempt} {...props} onRetry={() => setAttempt((current) => current + 1)} />;
@@ -68,24 +76,27 @@ function RecommendedRun({
   onLike,
   onChannel,
   onRetry,
+  initialVideo,
 }: {
   phone: boolean;
   likedIds: Set<string>;
   onLike: (video: Video) => void;
   onChannel: (target: ChannelTarget) => void;
   onRetry: () => void;
+  initialVideo: Video | null;
 }) {
-  const [items, setItems] = useState<Occurrence[]>([]);
-  const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">("loading");
+  const seeded = initialVideo ? [{ key: shortKey(initialVideo.id, 1), video: initialVideo }] : [];
+  const [items, setItems] = useState<Occurrence[]>(seeded);
+  const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">(seeded.length > 0 ? "ready" : "loading");
   const [tailError, setTailError] = useState(false);
   const session = useRef(0);
   const flight = useRef(0);
   const flightSession = useRef(0);
-  const occurrence = useRef(0);
-  const itemsRef = useRef<Occurrence[]>([]);
+  const occurrence = useRef(seeded.length);
+  const itemsRef = useRef<Occurrence[]>(seeded);
   const historyRef = useRef<string[]>([]);
   const doneRef = useRef(false);
-  const activeKey = useRef("");
+  const activeKey = useRef(seeded[0]?.key ?? "");
   const tailErrorRef = useRef(false);
 
   function store(next: Occurrence[]) {
@@ -212,6 +223,7 @@ function ShortsReel({
   likedIds,
   onLike,
   onChannel,
+  initialKey,
   tailError = false,
   onRetryTail,
   onActive,
@@ -222,14 +234,17 @@ function ShortsReel({
   likedIds: Set<string>;
   onLike: (video: Video) => void;
   onChannel: (target: ChannelTarget) => void;
+  initialKey?: string;
   tailError?: boolean;
   onRetryTail?: () => void;
   onActive?: (key: string) => void;
   onTrim?: (dropped: Occurrence[]) => void;
 }) {
-  const [activeKey, setActiveKey] = useState(items[0]?.key ?? "");
+  const start = items.some((item) => item.key === initialKey) ? initialKey! : (items[0]?.key ?? "");
+  const [activeKey, setActiveKey] = useState(start);
   const scroller = useRef<HTMLElement>(null);
   const pendingTrim = useRef(0);
+  const placed = useRef(false);
   const onActiveRef = useRef(onActive);
   const onTrimRef = useRef(onTrim);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -241,6 +256,20 @@ function ShortsReel({
     root.scrollTop -= pendingTrim.current;
     pendingTrim.current = 0;
   }, [items]);
+
+  useLayoutEffect(() => {
+    if (placed.current) return;
+    const root = scroller.current;
+    if (!root || !start) return;
+    if (start === items[0]?.key) {
+      placed.current = true;
+      return;
+    }
+    const target = [...root.querySelectorAll("[data-short-key]")].find((item) => item.getAttribute("data-short-key") === start);
+    if (!(target instanceof HTMLElement)) return;
+    target.scrollIntoView({ block: "start" });
+    placed.current = true;
+  }, [start, items]);
 
   useEffect(() => {
     const root = scroller.current;

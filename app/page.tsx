@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { HomeFeed } from "@/components/home-feed";
+import { viewerLibrary } from "@/lib/likes";
 import { channelCatalog, loadLibrary } from "@/lib/library";
 import { chips, exploreTopics, type Chip, type ExploreTopic, type LibraryView } from "@/lib/videos";
 
@@ -13,6 +14,7 @@ export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{
+    q?: string | string[];
     v?: string | string[];
     chip?: string | string[];
     explore?: string | string[];
@@ -25,10 +27,13 @@ export default async function Home({
   const explore = one(params.explore);
   const library = one(params.library);
   if (library === "shorts") redirect("/shorts");
-  const data = await loadLibrary();
+  const [data, viewer] = await Promise.all([loadLibrary(), viewerLibrary()]);
   return (
     <HomeFeed
       videos={channelCatalog(data)}
+      initialLikedIds={viewer.likedIds}
+      initialRecommendedIds={viewer.recommendedIds}
+      initialViewerId={viewer.userId}
       profiles={data.profiles}
       commentsByVideoId={data.commentsByVideoId}
       subscribersByChannel={data.subscribersByChannel}
@@ -37,6 +42,7 @@ export default async function Home({
       initialChip={(chips as readonly string[]).includes(chip ?? "") ? (chip as Chip) : "All"}
       initialExplore={(exploreTopics as readonly string[]).includes(explore ?? "") ? (explore as ExploreTopic) : null}
       initialLibrary={(libraries as readonly string[]).includes(library ?? "") ? (library as LibraryView) : "home"}
+      initialQuery={one(params.q) ?? ""}
     />
   );
 }

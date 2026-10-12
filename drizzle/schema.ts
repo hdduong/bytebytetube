@@ -1,5 +1,18 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, doublePrecision, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  customType,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import type { OverlayPart } from "@/lib/videos";
 
 function when(name: string) {
@@ -94,6 +107,20 @@ export const videos = pgTable(
     index("videos_source_idx").on(table.source),
     uniqueIndex("videos_thumbnail_key").on(table.thumbnail),
   ],
+);
+
+export const videoLikes = pgTable(
+  "video_likes",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    videoId: uuid("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    createdAt: when("created_at").notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.videoId] }), index("video_likes_video_id_idx").on(table.videoId)],
 );
 
 export const comments = pgTable(
