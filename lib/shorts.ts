@@ -39,23 +39,7 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   `;
 }
 
-let sampleReady: Promise<void> | null = null;
-
-function ensureSampleKey() {
-  sampleReady ??= (async () => {
-    await db.execute(sql`alter table videos add column if not exists sample_key double precision`);
-    await db.execute(sql`update videos set sample_key = random() where sample_key is null`);
-    await db.execute(sql`alter table videos alter column sample_key set default random()`);
-    await db.execute(sql`create index if not exists videos_short_sample_key_idx on videos (sample_key) where source = 'short' and unlisted = false`);
-  })().catch((error: unknown) => {
-    sampleReady = null;
-    throw error;
-  });
-  return sampleReady;
-}
-
 async function randomShorts(exclude: string[], anchor: string | null, _limit: number, embeddedOnly: boolean) {
-  await ensureSampleKey();
   const start = Math.random();
   const filter = shortFilter(exclude, anchor, embeddedOnly);
   const rows = await db.execute<{ slug: string }>(sql`
@@ -87,6 +71,7 @@ async function nearestShorts(anchor: string, limit: number) {
   const breadth = Math.max(40, Math.floor(limit));
   const rows = await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`set local hnsw.ef_search = ${breadth}`));
+    await tx.execute(sql.raw(`set local hnsw.iterative_scan = relaxed_order`));
     return tx.execute<{ slug: string }>(sql`
       select slug
       from videos
