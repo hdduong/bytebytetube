@@ -154,22 +154,25 @@ export function HomeFeed({
   }, [activeId]);
 
   function openChannel(name: string) {
-    const known = profiles.find((profile) => profile.slug === name || profile.name === name);
-    let slug = known?.slug ?? name;
-    if (!known) {
+    if (name.startsWith("channel-slug:")) {
+      let slug = name.slice("channel-slug:".length);
       try {
         slug = decodeURIComponent(slug);
       } catch {
         return;
       }
       if (!slug || slug === "." || slug === ".." || /[/?#\\%]/.test(slug)) return;
+      router.push(`/channel/${encodeURIComponent(slug)}`);
+      return;
     }
-    const path = `/channel/${encodeURIComponent(slug)}`;
-    if (!known || pathname !== path) {
+    const known = profiles.find((profile) => profile.name === name);
+    if (!known) return;
+    const path = `/channel/${known.slug}`;
+    if (pathname !== path) {
       router.push(path);
       return;
     }
-    setChannel(slug);
+    setChannel(known.slug);
     setLibrary("home");
     setExplore(null);
     setChip("All");

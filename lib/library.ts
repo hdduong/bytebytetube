@@ -1,9 +1,10 @@
 import { cache } from "react";
-import { asc, eq, getTableColumns, inArray } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { channels, comments, users, videos } from "@/drizzle/schema";
 import { exploreTopics, isGenre, type ExploreTopic, type Video } from "@/lib/videos";
+import { SLUG_LIMIT } from "@/lib/shorts-plan";
 import type { Comment } from "@/lib/watch";
 
 function catalogColumns() {
@@ -185,7 +186,14 @@ export async function videosBySlugs(slugs: string[]): Promise<Video[]> {
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
-    .where(inArray(videos.slug, slugs));
+    .where(
+      and(
+        inArray(videos.slug, slugs),
+        eq(videos.source, "short"),
+        eq(videos.unlisted, false),
+        sql`char_length(${videos.slug}) <= ${SLUG_LIMIT}`,
+      ),
+    );
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
   return slugs.flatMap((slug) => {
     const row = bySlug.get(slug);
