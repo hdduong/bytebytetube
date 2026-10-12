@@ -108,13 +108,13 @@ export function ChannelView({
   const [tabResult, setTabResult] = useState<{ query: string; channel: string; scored: ScoredSlug[] } | null>(null);
   const [searchError, setSearchError] = useState(false);
   const [trackedSearch, setTrackedSearch] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+  const [more, setMore] = useState(false);
   const searchTrack = `${tabQuery}\n${profile.name}`;
   if (searchTrack !== trackedSearch) {
     setTrackedSearch(searchTrack);
     setSearchError(false);
   }
-  const [subscribed, setSubscribed] = useState(false);
-  const [more, setMore] = useState(false);
 
   useEffect(() => {
     const needle = tabQuery.trim();

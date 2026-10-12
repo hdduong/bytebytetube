@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   customType,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -98,6 +100,7 @@ export const videos = pgTable(
     sortOrder: integer("sort_order").notNull(),
     playback: text("playback"),
     thumbnailEmbedding: vector512("thumbnail_embedding"),
+    sampleKey: doublePrecision("sample_key").default(sql`random()`),
   },
   (table) => [
     index("videos_channel_id_idx").on(table.channelId),

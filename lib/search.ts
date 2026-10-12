@@ -125,6 +125,15 @@ function isDefaultCatalog(scope: SearchScope) {
   );
 }
 
+function idFilter(scope: SearchScope) {
+  if (scope.ids === undefined) return sql`true`;
+  if (scope.ids.length === 0) return sql`false`;
+  return sql`slug in (${sql.join(
+    scope.ids.map((id) => sql`${id}`),
+    sql`, `,
+  )})`;
+}
+
 function hasFilter(scope: SearchScope) {
   return Object.values(scope).some((value) => value !== undefined);
 }
@@ -184,7 +193,7 @@ async function runSearch(query: string, scope: SearchScope): Promise<SearchResul
                 and (${scope.newRelease === undefined} or new_release = ${scope.newRelease ?? false})
                 and (${scope.spoilerFree === undefined} or spoiler_free = ${scope.spoilerFree ?? false})
                 and (${scope.topRated === undefined} or top_rated = ${scope.topRated ?? false})
-                and (${scope.ids === undefined} or slug = any(${scope.ids ?? []}))
+                and ${idFilter(scope)}
             )
             select slug, (thumbnail_embedding <=> ${literal}::extensions.vector) as distance
             from candidates

@@ -1,9 +1,10 @@
 import { cache } from "react";
-import { asc, getTableColumns } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { channels, comments, users, videos } from "@/drizzle/schema";
 import { exploreTopics, isGenre, type ExploreTopic, type Video } from "@/lib/videos";
+import { SLUG_LIMIT } from "@/lib/shorts-plan";
 import type { Comment } from "@/lib/watch";
 
 function catalogColumns() {
@@ -163,6 +164,44 @@ export const loadLibrary = cache(async (): Promise<Library> => {
     likesByVideoId: Object.fromEntries(stored.map((video) => [video.id, video.likeCount])),
   };
 });
+
+function publicVideo(row: Omit<typeof videos.$inferSelect, "thumbnailEmbedding">, channelSlug: string): Video {
+  const stored = toVideo(row, channelSlug);
+  const {
+    viewCount: _viewCount,
+    recency: _recency,
+    sortOrder: _sortOrder,
+    likeCount: _likeCount,
+    ...item
+  } = stored;
+  return item;
+}
+
+export async function videosBySlugs(slugs: string[]): Promise<Video[]> {
+  if (slugs.length === 0) return [];
+  const rows = await db
+    .select({
+      ...catalogColumns(),
+      channelSlug: channels.slug,
+    })
+    .from(videos)
+    .leftJoin(channels, eq(videos.channelId, channels.id))
+    .where(
+      and(
+        inArray(videos.slug, slugs),
+        eq(videos.source, "short"),
+        eq(videos.unlisted, false),
+        sql`char_length(${videos.slug}) <= ${SLUG_LIMIT}`,
+      ),
+    );
+  const bySlug = new Map(rows.map((row) => [row.slug, row]));
+  return slugs.flatMap((slug) => {
+    const row = bySlug.get(slug);
+    if (!row) return [];
+    const { channelSlug, ...video } = row;
+    return [publicVideo(video, channelSlug ?? "")];
+  });
+}
 
 export function channelCatalog(library: Library) {
   return [...library.feed, ...library.explore, ...library.channelVideos, ...library.shorts];
