@@ -89,12 +89,14 @@ export function ChannelView({
   ranked,
   searchFailed = false,
   onOpen,
+  signedIn = false,
 }: {
   profile: ChannelProfile;
   query: string;
   ranked: ScoredSlug[] | null;
   searchFailed?: boolean;
   onOpen: (id: string) => void;
+  signedIn?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("Home");
   const [sort, setSort] = useState<Sort>("Latest");
@@ -246,14 +248,16 @@ export function ChannelView({
               {more ? "Show less" : "...more"}
             </button>
           </p>
-          <button
-            type="button"
-            aria-pressed={subscribed}
-            onClick={toggleSubscribed}
-            className="mt-3 h-9 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip"
-          >
-            {subscribed ? "Subscribed" : "Subscribe"}
-          </button>
+          {signedIn ? (
+            <button
+              type="button"
+              aria-pressed={subscribed}
+              onClick={toggleSubscribed}
+              className="mt-3 h-9 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip"
+            >
+              {subscribed ? "Subscribed" : "Subscribe"}
+            </button>
+          ) : null}
         </div>
       </section>
 

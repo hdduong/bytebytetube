@@ -586,12 +586,20 @@ export function HomeFeed({
               onChannel={openChannel}
               onToggleSave={(video) => setSavedIds((current) => toggleId(current, video.id))}
               onToggleLike={toggleLike}
+              signedIn={Boolean(initialViewerId)}
             />
           </div>
         ) : null}
 
         {showChannel && channelProfile ? (
-          <ChannelView profile={channelProfile} query={query} ranked={ranked} searchFailed={failedSearch} onOpen={openVideo} />
+          <ChannelView
+            profile={channelProfile}
+            query={query}
+            ranked={ranked}
+            searchFailed={failedSearch}
+            onOpen={openVideo}
+            signedIn={Boolean(initialViewerId)}
+          />
         ) : null}
 
         {showHome ? (
