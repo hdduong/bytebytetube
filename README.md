@@ -2,6 +2,38 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Node.js 22 or newer is required. Better Auth depends on Kysely, which does not run on older Node versions.
 
+## Live demo
+
+The live demo is [https://bytebytetube-git-fix-vercel-clip-boot-cinema-tube.vercel.app/](https://bytebytetube-git-fix-vercel-clip-boot-cinema-tube.vercel.app/).
+
+## Local setup
+
+You need Node.js 22 or newer and a Postgres database. Variable names and placeholders are in `.env.example`.
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy `.env.example` to `.env`. Set `DATABASE_URL` and `BETTER_AUTH_SECRET`. The same file names `BETTER_AUTH_URL`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_STREAM_API_TOKEN`, `FAL_KEY`, `CLIP_CACHE_DIR`, and `SHORTS_NEIGHBORS`.
+
+3. On a database that does not already have the auth tables, apply the auth schema:
+
+```bash
+npm run db:auth
+```
+
+That runs `scripts/auth-schema.mjs`. It is safe to run again. It reads `DATABASE_URL` from the environment or from `.env`.
+
+4. Start the dev server:
+
+```bash
+npm run dev
+```
+
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
+
 ## Auth database
 
 Before the first `npm run dev` or `npm start` on a database that does not already have the auth tables, run:
@@ -25,7 +57,7 @@ Shorts recommendations reuse those stored thumbnail embeddings. Set `SHORTS_NEIG
 
 ## Getting Started
 
-First, run the development server:
+With `.env` and the auth schema in place, run the development server:
 
 ```bash
 npm run dev
@@ -37,7 +69,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
@@ -53,6 +85,8 @@ To learn more about Next.js, take a look at the following resources:
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
+
+The live demo is this app on Vercel: [https://bytebytetube-git-fix-vercel-clip-boot-cinema-tube.vercel.app/](https://bytebytetube-git-fix-vercel-clip-boot-cinema-tube.vercel.app/).
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
