@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useSubscribeCelebration } from "@/components/balloon-burst";
 import { SearchIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { type ChannelProfile, type ChannelVideo } from "@/lib/channel";
@@ -88,12 +89,14 @@ export function ChannelView({
   ranked,
   searchFailed = false,
   onOpen,
+  signedIn = false,
 }: {
   profile: ChannelProfile;
   query: string;
   ranked: ScoredSlug[] | null;
   searchFailed?: boolean;
   onOpen: (id: string) => void;
+  signedIn?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("Home");
   const [sort, setSort] = useState<Sort>("Latest");
@@ -109,6 +112,7 @@ export function ChannelView({
   const [searchError, setSearchError] = useState(false);
   const [trackedSearch, setTrackedSearch] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const { celebrateSubscribe, celebrateUnsubscribe, celebration } = useSubscribeCelebration();
   const [more, setMore] = useState(false);
   const searchTrack = `${tabQuery}\n${profile.name}`;
   if (searchTrack !== trackedSearch) {
@@ -185,6 +189,13 @@ export function ChannelView({
           return left.recency - right.recency;
         });
 
+  function toggleSubscribed() {
+    const next = !subscribed;
+    setSubscribed(next);
+    if (next) celebrateSubscribe();
+    else celebrateUnsubscribe();
+  }
+
   function selectTab(next: Tab) {
     setGenre("All genres");
     setTab(next);
@@ -198,6 +209,7 @@ export function ChannelView({
 
   return (
     <div className="flex flex-col gap-4 pt-4">
+      {celebration}
       <section className="relative h-[140px] overflow-hidden rounded-xl bg-[#121212] palm:h-[180px]">
         {profile.banner ? (
           <Image
@@ -236,14 +248,16 @@ export function ChannelView({
               {more ? "Show less" : "...more"}
             </button>
           </p>
-          <button
-            type="button"
-            aria-pressed={subscribed}
-            onClick={() => setSubscribed((value) => !value)}
-            className="mt-3 h-9 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip"
-          >
-            {subscribed ? "Subscribed" : "Subscribe"}
-          </button>
+          {signedIn ? (
+            <button
+              type="button"
+              aria-pressed={subscribed}
+              onClick={toggleSubscribed}
+              className="mt-3 h-9 rounded-full bg-chip px-4 text-[14px] font-medium text-on-chip"
+            >
+              {subscribed ? "Subscribed" : "Subscribe"}
+            </button>
+          ) : null}
         </div>
       </section>
 

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useSubscribeCelebration } from "@/components/balloon-burst";
 import { MoreIcon, ThumbUpIcon } from "@/components/icons";
 import { MediaVideo } from "@/components/media-video";
 import { cn } from "@/lib/cn";
@@ -28,6 +29,7 @@ type WatchViewProps = {
   onChannel?: (channel: string) => void;
   onToggleSave: (video: Video) => void;
   onToggleLike: (video: Video) => void;
+  signedIn?: boolean;
 };
 
 function parseDuration(value: string) {
@@ -55,6 +57,7 @@ export function WatchView({
   onChannel,
   onToggleSave,
   onToggleLike,
+  signedIn = false,
 }: WatchViewProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement>(null);
@@ -70,6 +73,7 @@ export function WatchView({
   const [shareNote, setShareNote] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [subscribed, setSubscribed] = useState<Record<string, boolean>>({});
+  const { celebrateSubscribe, celebrateUnsubscribe, celebration } = useSubscribeCelebration();
   const [disliked, setDisliked] = useState(false);
   const [recFilter, setRecFilter] = useState<"all" | "same" | "channel">("all");
   const [relatedResult, setRelatedResult] = useState<{
@@ -224,8 +228,16 @@ export function WatchView({
     setReplyTo(null);
   }
 
+  function toggleSubscribed() {
+    const next = !isSubscribed;
+    setSubscribed((current) => ({ ...current, [video.channel]: next }));
+    if (next) celebrateSubscribe();
+    else celebrateUnsubscribe();
+  }
+
   return (
     <div className="grid items-start gap-6 stage:grid-cols-[minmax(0,1fr)_402px]">
+      {celebration}
       <div>
         <div
           ref={playerRef}
@@ -405,24 +417,21 @@ export function WatchView({
               </div>
             </div>
           )}
-          <button
-            type="button"
-            aria-pressed={isSubscribed}
-            onClick={() =>
-              setSubscribed((current) => ({
-                ...current,
-                [video.channel]: !current[video.channel],
-              }))
-            }
-            className={cn(
-              "h-9 rounded-full px-4 text-sm font-medium",
-              isSubscribed
-                ? "bg-raised text-ink hover:bg-raised-hover"
-                : "bg-chip text-on-chip hover:opacity-90",
-            )}
-          >
-            {isSubscribed ? "Subscribed" : "Subscribe"}
-          </button>
+          {signedIn ? (
+            <button
+              type="button"
+              aria-pressed={isSubscribed}
+              onClick={toggleSubscribed}
+              className={cn(
+                "h-9 rounded-full px-4 text-sm font-medium",
+                isSubscribed
+                  ? "bg-raised text-ink hover:bg-raised-hover"
+                  : "bg-chip text-on-chip hover:opacity-90",
+              )}
+            >
+              {isSubscribed ? "Subscribed" : "Subscribe"}
+            </button>
+          ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="flex h-9 items-center overflow-hidden rounded-full bg-raised">
               <button
