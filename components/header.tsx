@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftIcon, BellIcon, MenuIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
 import { TasteDebug } from "@/components/taste-debug";
@@ -33,13 +33,19 @@ export function Header({
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const voice = useVoiceSearch(query, onQueryChange);
+  const {
+    supported: voiceSupported,
+    listening: voiceListening,
+    message: voiceMessage,
+    toggle: toggleVoice,
+    onUserEdit,
+  } = useVoiceSearch(query, onQueryChange);
   const voiceStatusId = `${searchId}-voice-status`;
   const voiceHintId = `${searchId}-voice-hint`;
-  const voiceDescribedBy = voice.message ? voiceStatusId : voice.supported ? undefined : voiceHintId;
+  const voiceDescribedBy = voiceMessage ? voiceStatusId : voiceSupported ? undefined : voiceHintId;
 
   function editQuery(value: string) {
-    voice.onUserEdit();
+    onUserEdit();
     onQueryChange(value);
   }
   const { data: session } = authClient.useSession();
@@ -67,11 +73,11 @@ export function Header({
     };
   }, [panel]);
 
-  function closeSearch() {
-    if (voice.listening) voice.onUserEdit();
+  const closeSearch = useCallback(() => {
+    onUserEdit();
     restoreSearchFocus.current = true;
     setSearchOpen(false);
-  }
+  }, [onUserEdit]);
 
   useEffect(() => {
     if (searchOpen || !restoreSearchFocus.current) return;
@@ -88,7 +94,7 @@ export function Header({
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [searchOpen]);
+  }, [searchOpen, closeSearch]);
 
   return (
     <header
@@ -129,11 +135,11 @@ export function Header({
             />
             <VoiceSearchButton
               appearance="inset"
-              listening={voice.listening}
-              supported={voice.supported}
+              listening={voiceListening}
+              supported={voiceSupported}
               describedBy={voiceDescribedBy}
               onPress={() => {
-                voice.toggle();
+                toggleVoice();
                 mobileInputRef.current?.focus();
               }}
               className="grid h-8 w-8"
@@ -158,7 +164,7 @@ export function Header({
             aria-label="CinemaTube home"
             onClick={(event) => {
               event.preventDefault();
-              if (voice.listening) voice.onUserEdit();
+              onUserEdit();
               onHome();
             }}
           >
@@ -206,11 +212,11 @@ export function Header({
           </form>
           <VoiceSearchButton
             appearance="circle"
-            listening={voice.listening}
-            supported={voice.supported}
+            listening={voiceListening}
+            supported={voiceSupported}
             describedBy={voiceDescribedBy}
             onPress={() => {
-              voice.toggle();
+              toggleVoice();
               inputRef.current?.focus();
             }}
             className="hidden h-10 w-10 palm:grid"
@@ -310,14 +316,14 @@ export function Header({
         id={voiceStatusId}
         role="status"
         className={
-          voice.message
+          voiceMessage
             ? "absolute left-1/2 top-full z-50 mt-2 max-w-xs -translate-x-1/2 rounded-xl border border-line bg-menu px-3 py-2 text-center text-[13px] leading-snug text-ink shadow-2xl"
             : "sr-only"
         }
       >
-        {voice.message}
+        {voiceMessage}
       </p>
-      {voice.supported ? null : (
+      {voiceSupported ? null : (
         <span id={voiceHintId} className="sr-only">
           Voice search is not available in this browser.
         </span>

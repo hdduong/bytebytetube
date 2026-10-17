@@ -70,6 +70,9 @@ function permissionMessage(error: string) {
   if (error === "network") {
     return "Voice search is unavailable right now. You can still type to search.";
   }
+  if (error === "language-not-supported") {
+    return "Voice search doesn't support this language. You can still type to search.";
+  }
   return null;
 }
 
@@ -80,15 +83,27 @@ export function useVoiceSearch(query: string, onQueryChange: (value: string) => 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const listeningRef = useRef(false);
   const sessionRef = useRef(0);
+  const appliedVoiceRef = useRef(false);
+  const queryBeforeVoiceRef = useRef(query);
+  const voiceQueryRef = useRef<string | null>(null);
   const onQueryChangeRef = useRef(onQueryChange);
   useEffect(() => {
     onQueryChangeRef.current = onQueryChange;
   }, [onQueryChange]);
 
+  function writeQuery(value: string) {
+    voiceQueryRef.current = value;
+    onQueryChangeRef.current(value);
+  }
+
   const stop = useCallback((discard = false) => {
     const recognition = recognitionRef.current;
     if (!listeningRef.current && !recognition) return;
-    if (discard) sessionRef.current += 1;
+    if (discard) {
+      sessionRef.current += 1;
+      appliedVoiceRef.current = false;
+      voiceQueryRef.current = null;
+    }
     listeningRef.current = false;
     setListening(false);
     if (!recognition) return;
@@ -112,6 +127,10 @@ export function useVoiceSearch(query: string, onQueryChange: (value: string) => 
   }, []);
 
   useEffect(() => {
+    // A voice write records the value it just published. Matching that value
+    // means the field changed because of recognition, including a retraction
+    // back to empty, so it must not abort the session still in progress.
+    if (voiceQueryRef.current === query) return;
     if (query !== "" || !listeningRef.current) return;
     const timer = window.setTimeout(() => stop(true), 0);
     return () => window.clearTimeout(timer);
@@ -153,6 +172,8 @@ export function useVoiceSearch(query: string, onQueryChange: (value: string) => 
     }
     const session = sessionRef.current + 1;
     sessionRef.current = session;
+    queryBeforeVoiceRef.current = query;
+    appliedVoiceRef.current = false;
     const recognition = new Ctor();
     recognition.continuous = false;
     recognition.interimResults = true;
@@ -161,7 +182,14 @@ export function useVoiceSearch(query: string, onQueryChange: (value: string) => 
     recognition.onresult = (event) => {
       if (session !== sessionRef.current) return;
       const text = spokenText(event.results);
-      if (text) onQueryChangeRef.current(text);
+      if (!text) {
+        if (!appliedVoiceRef.current) return;
+        appliedVoiceRef.current = false;
+        writeQuery(queryBeforeVoiceRef.current);
+        return;
+      }
+      appliedVoiceRef.current = true;
+      writeQuery(text);
     };
     recognition.onerror = (event) => {
       if (session !== sessionRef.current) return;
@@ -197,10 +225,10 @@ export function useVoiceSearch(query: string, onQueryChange: (value: string) => 
     else start();
   }
 
-  function onUserEdit() {
-    if (listeningRef.current) stop(true);
+  const onUserEdit = useCallback(() => {
+    if (listeningRef.current || recognitionRef.current) stop(true);
     setMessage(null);
-  }
+  }, [stop]);
 
   return { supported, listening, message, toggle, onUserEdit };
 }
