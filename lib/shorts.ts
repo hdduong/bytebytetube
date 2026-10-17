@@ -31,7 +31,6 @@ function shortFilter(exclude: string[], anchor: string | null, embeddedOnly: boo
   const exclusion = exclude.length === 0 ? sql`true` : excluded(exclude);
   return sql`
     source = 'short'
-    and unlisted = false
     and char_length(slug) <= ${SLUG_LIMIT}
     and (${anchor === null} or slug <> ${anchor ?? ""})
     and (${embeddedOnly} = false or thumbnail_embedding is not null)
@@ -92,7 +91,6 @@ async function nearestShorts(anchor: string, limit: number) {
       select slug
       from videos
       where source = 'short'
-        and unlisted = false
         and thumbnail_embedding is not null
         and char_length(slug) <= ${SLUG_LIMIT}
         and slug <> ${anchor}
@@ -109,7 +107,7 @@ async function shortVector(slug: string) {
   const rows = await db.execute<{ ready: boolean }>(sql`
     select thumbnail_embedding is not null as ready
     from videos
-    where slug = ${slug} and source = 'short' and unlisted = false
+    where slug = ${slug} and source = 'short'
     limit 1
   `);
   const row = [...rows][0];

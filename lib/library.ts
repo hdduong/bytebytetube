@@ -190,7 +190,6 @@ export async function videosBySlugs(slugs: string[]): Promise<Video[]> {
       and(
         inArray(videos.slug, slugs),
         eq(videos.source, "short"),
-        eq(videos.unlisted, false),
         sql`char_length(${videos.slug}) <= ${SLUG_LIMIT}`,
       ),
     );
