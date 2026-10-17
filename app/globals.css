@@ -180,7 +180,7 @@ summary::-webkit-details-marker {
 .balloon-burst {
   animation-name: balloon-burst;
   animation-timing-function: cubic-bezier(0.12, 0.74, 0.22, 1);
-  animation-fill-mode: forwards;
+  animation-fill-mode: both;
   line-height: 1;
   will-change: transform, opacity;
 }
