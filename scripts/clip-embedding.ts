@@ -1,14 +1,27 @@
 import os from "node:os";
 import path from "node:path";
-import { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection, env, RawImage } from "@huggingface/transformers";
+import type { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection } from "@huggingface/transformers";
 import type postgres from "postgres";
 import { CLIP_DIMENSIONS } from "../drizzle/schema";
+
+type Transformers = typeof import("@huggingface/transformers");
 
 export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
 
 const publicRoot = path.resolve(process.cwd(), "public");
 
-function configureClip() {
+let transformersPromise: Promise<Transformers> | undefined;
+
+function loadTransformers() {
+  // Import only when an embedding is requested. A top-level import evaluates
+  // onnxruntime-node immediately, and a missing binary would crash the server
+  // before the first page renders.
+  transformersPromise ??= import("@huggingface/transformers");
+  return transformersPromise;
+}
+
+async function configureClip() {
+  const { env } = await loadTransformers();
   env.cacheDir = process.env.CLIP_CACHE_DIR || path.join(os.tmpdir(), "cinematube-clip");
 }
 
@@ -46,7 +59,8 @@ function normalize(values: Float32Array) {
 let loadingVision: Promise<void> | undefined;
 
 async function clip() {
-  configureClip();
+  const { AutoProcessor, CLIPVisionModelWithProjection } = await loadTransformers();
+  await configureClip();
   if (!processor || !visionModel) {
     if (!loadingVision) {
       const attempt: { promise?: Promise<void> } = {};
@@ -71,6 +85,7 @@ export async function clipImageEmbedding(source: string) {
   if (source.startsWith("https://") || source.startsWith("http://")) {
     if (!allowedImageUrl(source)) throw new Error("Refusing to fetch a thumbnail from that host");
   }
+  const { RawImage } = await loadTransformers();
   const image = source.startsWith("https://") ? await RawImage.read(source) : await RawImage.read(fileInsidePublic(source));
   const { processor: imageProcessor, visionModel: model } = await clip();
   const inputs = await imageProcessor(image);
@@ -93,7 +108,8 @@ function embeddingValues(data: ArrayLike<number> | undefined) {
 let loadingText: Promise<void> | undefined;
 
 async function clipText() {
-  configureClip();
+  const { AutoTokenizer, CLIPTextModelWithProjection } = await loadTransformers();
+  await configureClip();
   if (!tokenizer || !textModel) {
     if (!loadingText) {
       const attempt: { promise?: Promise<void> } = {};
