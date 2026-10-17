@@ -152,14 +152,16 @@ export async function ensureVectorSchema(sql: postgres.Sql) {
     `create index if not exists videos_visible_thumbnail_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where unlisted = false and topic is null`,
   );
   await sql.unsafe(`drop index if exists videos_short_thumbnail_embedding_idx`);
+  await sql.unsafe(`drop index if exists videos_short_visible_embedding_idx`);
   await sql.unsafe(
-    `create index if not exists videos_short_visible_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where source = 'short' and unlisted = false and char_length(slug) <= 120`,
+    `create index if not exists videos_short_visible_embedding_idx on videos using hnsw (thumbnail_embedding extensions.vector_cosine_ops) where source = 'short' and char_length(slug) <= 120`,
   );
   await sql.unsafe(`create index if not exists videos_short_slug_idx on videos (slug) where source = 'short'`);
   await sql.unsafe(`alter table videos add column if not exists sample_key double precision`);
   await sql.unsafe(`update videos set sample_key = random() where sample_key is null`);
   await sql.unsafe(`alter table videos alter column sample_key set default random()`);
+  await sql.unsafe(`drop index if exists videos_short_sample_key_idx`);
   await sql.unsafe(
-    `create index if not exists videos_short_sample_key_idx on videos (sample_key) where source = 'short' and unlisted = false`,
+    `create index if not exists videos_short_sample_key_idx on videos (sample_key) where source = 'short'`,
   );
 }
