@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useId, useState } from "react";
 import {
   ChevronDownIcon,
@@ -69,15 +70,17 @@ function Row({
   label,
   active = false,
   onClick,
+  href,
 }: {
   icon: typeof HomeIcon;
   label: string;
   active?: boolean;
   onClick?: () => void;
+  href?: string;
 }) {
   const className = cn(
     "flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-[14px] text-ink",
-    active ? "bg-raised font-medium" : onClick ? "hover-wash" : "",
+    active ? "bg-raised font-medium" : onClick || href ? "hover-wash" : "",
   );
   const body = (
     <>
@@ -85,6 +88,13 @@ function Row({
       <span className="truncate">{label}</span>
     </>
   );
+  if (href) {
+    return (
+      <Link href={href} aria-current={active ? "page" : undefined} className={className}>
+        {body}
+      </Link>
+    );
+  }
   if (!onClick) {
     return <div className={className}>{body}</div>;
   }
@@ -246,6 +256,9 @@ export function Sidebar({
           <ChevronRightIcon className="h-5 w-5" />
         </div>
         <ul className="space-y-0.5">
+          <li>
+            <Row icon={SparkIcon} label="Premium" href="/premium" />
+          </li>
           <li>
             <Row icon={UserIcon} label="Your channel" />
           </li>

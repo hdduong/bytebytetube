@@ -9,6 +9,24 @@ const statements = [
   `alter table users add column if not exists created_at timestamptz not null default now()`,
   `alter table users add column if not exists updated_at timestamptz not null default now()`,
   `create unique index if not exists users_email_unique on users (email)`,
+  `create table if not exists memberships (
+    user_id uuid primary key references users (id) on delete cascade,
+    plan text not null,
+    updated_at timestamptz not null default now()
+  )`,
+  `do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'memberships_plan_check'
+      and conrelid = 'public.memberships'::regclass
+  ) then
+    alter table memberships
+      add constraint memberships_plan_check
+      check (plan in ('basic', 'pro'));
+  end if;
+end $$`,
+  `alter table memberships enable row level security`,
   `create table if not exists session (
     id uuid primary key,
     expires_at timestamptz not null,

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   customType,
   doublePrecision,
   index,
@@ -48,6 +49,18 @@ export const users = pgTable("users", {
   createdAt: when("created_at").notNull().defaultNow(),
   updatedAt: when("updated_at").notNull().defaultNow(),
 });
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    plan: text("plan").notNull(),
+    updatedAt: when("updated_at").notNull().defaultNow(),
+  },
+  (table) => [check("memberships_plan_check", sql`${table.plan} in ('basic', 'pro')`)],
+);
 
 export const channels = pgTable("channels", {
   id: uuid("id").primaryKey().defaultRandom(),
