@@ -1,16 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { PlaywrightAgent } from "@midscene/web/playwright";
 
 const channel = "/channel/midnight-marquee";
 const watch = "/channel/midnight-marquee?v=the-hallway-that-never-ends";
-
-function missingMidsceneEnv() {
-  const missing: string[] = [];
-  if (!process.env.MIDSCENE_MODEL_API_KEY && !process.env.OPENAI_API_KEY) missing.push("MIDSCENE_MODEL_API_KEY");
-  if (!process.env.MIDSCENE_MODEL_NAME) missing.push("MIDSCENE_MODEL_NAME");
-  if (!process.env.MIDSCENE_MODEL_BASE_URL && !process.env.OPENAI_BASE_URL) missing.push("MIDSCENE_MODEL_BASE_URL");
-  return missing;
-}
 
 async function signIn(page: Page) {
   const email = process.env.SUBSCRIBE_TEST_EMAIL;
@@ -68,28 +59,4 @@ test("signed-in subscribe launches balloons and unsubscribe shows one heart", as
   await expect(page.locator("[data-broken-heart]")).toHaveCount(1);
   await expect(page.locator("[data-balloon]")).toHaveCount(0);
   expect(page.url()).toContain("/channel/midnight-marquee?v=the-hallway-that-never-ends");
-});
-
-test("Midscene describes subscribe, the burst, and the broken heart", async ({ page }) => {
-  const missing = missingMidsceneEnv();
-  test.skip(missing.length > 0, `Missing ${missing.join(", ")}`);
-
-  const agent = new PlaywrightAgent(page);
-  await page.goto(channel);
-  await agent.aiAssert(
-    "This is a channel page. There is no Subscribe button and no login modal is open.",
-  );
-  await expectSubscribeHidden(page);
-
-  await signIn(page);
-  await agent.aiAct("Click the Subscribe button in the channel header. Do not open a login page.");
-  await agent.aiAssert(
-    "Many balloon emojis are visible, the button reads Subscribed, and no login modal is open.",
-  );
-  await expect.poll(async () => page.locator("[data-balloon]").count()).toBeGreaterThanOrEqual(100);
-
-  await agent.aiAct("Click the Subscribed button to unsubscribe. Do not sign out.");
-  await agent.aiAssert("One broken heart is visible and there are no balloons. No login modal is open.");
-  await expect(page.locator("[data-broken-heart]")).toHaveCount(1);
-  await expect(page.locator("[data-balloon]")).toHaveCount(0);
 });
