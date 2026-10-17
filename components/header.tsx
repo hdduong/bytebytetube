@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowLeftIcon, BellIcon, MenuIcon, MicIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import { ArrowLeftIcon, BellIcon, MenuIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { PhoneToggle } from "@/components/phone-layout";
 import { TasteDebug } from "@/components/taste-debug";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { useVoiceSearch, VoiceSearchButton } from "@/components/voice-search";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
 
@@ -30,7 +31,17 @@ export function Header({
 }: HeaderProps) {
   const searchId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const voice = useVoiceSearch(query, onQueryChange);
+  const voiceStatusId = `${searchId}-voice-status`;
+  const voiceHintId = `${searchId}-voice-hint`;
+  const voiceDescribedBy = voice.message ? voiceStatusId : voice.supported ? undefined : voiceHintId;
+
+  function editQuery(value: string) {
+    voice.onUserEdit();
+    onQueryChange(value);
+  }
   const { data: session } = authClient.useSession();
   const router = useRouter();
   const restoreSearchFocus = useRef(false);
@@ -57,6 +68,7 @@ export function Header({
   }, [panel]);
 
   function closeSearch() {
+    if (voice.listening) voice.onUserEdit();
     restoreSearchFocus.current = true;
     setSearchOpen(false);
   }
@@ -97,22 +109,34 @@ export function Header({
           </button>
           <form
             role="search"
-            className="flex h-10 min-w-0 flex-1"
+            className="flex h-10 min-w-0 flex-1 items-center rounded-full border border-line bg-field pr-1"
             onSubmit={(event) => {
               event.preventDefault();
-              event.currentTarget.querySelector("input")?.blur();
+              mobileInputRef.current?.blur();
             }}
           >
             <label htmlFor={`${searchId}-mobile`} className="sr-only">
               Search movies, reviews, and creators
             </label>
             <input
+              ref={mobileInputRef}
               id={`${searchId}-mobile`}
               value={query}
               autoFocus
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={(event) => editQuery(event.target.value)}
               placeholder="Search"
-              className="h-full min-w-0 flex-1 rounded-full border border-line bg-field px-4 text-[16px] text-ink outline-none placeholder:text-muted"
+              className="h-full min-w-0 flex-1 bg-transparent px-4 text-[16px] text-ink outline-none placeholder:text-muted"
+            />
+            <VoiceSearchButton
+              appearance="inset"
+              listening={voice.listening}
+              supported={voice.supported}
+              describedBy={voiceDescribedBy}
+              onPress={() => {
+                voice.toggle();
+                mobileInputRef.current?.focus();
+              }}
+              className="grid h-8 w-8"
             />
           </form>
         </div>
@@ -134,6 +158,7 @@ export function Header({
             aria-label="CinemaTube home"
             onClick={(event) => {
               event.preventDefault();
+              if (voice.listening) voice.onUserEdit();
               onHome();
             }}
           >
@@ -167,7 +192,7 @@ export function Header({
               ref={inputRef}
               id={searchId}
               value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={(event) => editQuery(event.target.value)}
               placeholder="Search movies, reviews, and creators"
               className="h-full min-w-0 flex-1 rounded-l-full border border-line bg-field px-4 text-[16px] text-ink outline-none placeholder:text-muted focus:border-[#1c62b9]"
             />
@@ -179,14 +204,17 @@ export function Header({
               <SearchIcon className="h-5 w-5" />
             </button>
           </form>
-          <button
-            type="button"
-            aria-label="Search with your voice"
-            onClick={() => inputRef.current?.focus()}
-            className="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-raised hover:bg-raised-hover palm:grid"
-          >
-            <MicIcon className="h-5 w-5" />
-          </button>
+          <VoiceSearchButton
+            appearance="circle"
+            listening={voice.listening}
+            supported={voice.supported}
+            describedBy={voiceDescribedBy}
+            onPress={() => {
+              voice.toggle();
+              inputRef.current?.focus();
+            }}
+            className="hidden h-10 w-10 palm:grid"
+          />
         </div>
 
         <div ref={panelRef} className="flex shrink-0 items-center justify-end gap-0 palm:gap-2">
@@ -278,6 +306,22 @@ export function Header({
           />
         </div>
       </div>
+      <p
+        id={voiceStatusId}
+        role="status"
+        className={
+          voice.message
+            ? "absolute left-1/2 top-full z-50 mt-2 max-w-xs -translate-x-1/2 rounded-xl border border-line bg-menu px-3 py-2 text-center text-[13px] leading-snug text-ink shadow-2xl"
+            : "sr-only"
+        }
+      >
+        {voice.message}
+      </p>
+      {voice.supported ? null : (
+        <span id={voiceHintId} className="sr-only">
+          Voice search is not available in this browser.
+        </span>
+      )}
     </header>
   );
 }
