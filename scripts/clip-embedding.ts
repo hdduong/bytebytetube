@@ -1,12 +1,12 @@
-import os from "node:os";
 import path from "node:path";
 import type { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection } from "@huggingface/transformers";
 import type postgres from "postgres";
 import { CLIP_DIMENSIONS } from "../drizzle/schema";
+import { CLIP_DEVICE, CLIP_DTYPE, CLIP_MODEL, clipCacheDirectory } from "./clip-runtime";
 
 type Transformers = typeof import("@huggingface/transformers");
 
-export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
+export { CLIP_MODEL };
 
 const publicRoot = path.resolve(process.cwd(), "public");
 
@@ -22,7 +22,7 @@ function loadTransformers() {
 
 async function configureClip() {
   const { env } = await loadTransformers();
-  env.cacheDir = process.env.CLIP_CACHE_DIR || path.join(os.tmpdir(), "cinematube-clip");
+  env.cacheDir = clipCacheDirectory();
 }
 
 function allowedImageUrl(source: string) {
@@ -67,7 +67,10 @@ async function clip() {
       attempt.promise = (async () => {
         try {
           processor = await AutoProcessor.from_pretrained(CLIP_MODEL);
-          visionModel = await CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL);
+          visionModel = await CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL, {
+            device: CLIP_DEVICE,
+            dtype: CLIP_DTYPE,
+          });
         } catch (error) {
           if (loadingVision === attempt.promise) loadingVision = undefined;
           throw error;
@@ -116,7 +119,10 @@ async function clipText() {
       attempt.promise = (async () => {
         try {
           tokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL);
-          textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL);
+          textModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL, {
+            device: CLIP_DEVICE,
+            dtype: CLIP_DTYPE,
+          });
         } catch (error) {
           if (loadingText === attempt.promise) loadingText = undefined;
           throw error;

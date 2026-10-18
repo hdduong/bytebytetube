@@ -1,36 +1,45 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Page } from "@playwright/test";
+import {
+  blockedModelHosts,
+  hostnameOf,
+  installModelHostGuard,
+  isModelHost,
+  resetBlockedModelHosts,
+} from "../lib/model-host-guard";
+import { CLIP_DEVICE, CLIP_DTYPE, CLIP_MODEL, clipCacheDirectory, clipOnnxFiles } from "../scripts/clip-runtime";
 
 /**
  * Local stand-in for Midscene's `aiAssert`.
  *
  * Screenshots are embedded with the cached Xenova/clip-vit-base-patch32 model
- * (512-d, L2-normalized), the same weights scripts/clip-embedding.ts uses.
- * Remote model hosts are refused. A missing cache fails the test.
+ * (512-d, L2-normalized) at the same cpu/fp32 files `npm run clip:setup` uses.
+ * Remote model hosts are refused in this process, in the browser, and in an
+ * app server started with VISUAL_TEST_GUARD=1. A missing cache fails the test.
  *
  * Visual delta is `1 - cosine similarity` of those embeddings. 0 means the
  * two pictures have the same embedding; a larger score means they diverged.
  */
 
-export const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
+export { CLIP_MODEL };
+
 const CLIP_DIMENSIONS = 512;
+
+// A homepage match measured 0.3128. This floor stays under that score and still
+// fails a page that only barely beats an unrelated photograph.
+const MIN_LAYOUT_SIMILARITY = 0.27;
 
 const UNRELATED_SCENE =
   "a close-up underwater photograph of a coral reef and tropical fish with no text and no screens";
 
 const REQUIRED_FILES = [
-  "Xenova/clip-vit-base-patch32/config.json",
-  "Xenova/clip-vit-base-patch32/preprocessor_config.json",
-  "Xenova/clip-vit-base-patch32/tokenizer.json",
-  "Xenova/clip-vit-base-patch32/tokenizer_config.json",
-  "Xenova/clip-vit-base-patch32/onnx/text_model.onnx",
-  "Xenova/clip-vit-base-patch32/onnx/vision_model.onnx",
+  `${CLIP_MODEL}/config.json`,
+  `${CLIP_MODEL}/preprocessor_config.json`,
+  `${CLIP_MODEL}/tokenizer.json`,
+  `${CLIP_MODEL}/tokenizer_config.json`,
+  ...clipOnnxFiles(),
 ];
-
-const MODEL_HOSTS = ["huggingface.co", "hf.co", "openai.com", "fal.ai", "fal.run", "midscene.com"];
-
-const blockedModelRequests: string[] = [];
 
 type Embedding = number[];
 
@@ -40,52 +49,26 @@ type ClipRuntime = {
 };
 
 let runtimePromise: Promise<ClipRuntime> | undefined;
-let guardInstalled = false;
+
+const browserBlocked = new WeakMap<Page, string[]>();
+const serverBaseline = new WeakMap<Page, number>();
+
+installModelHostGuard();
 
 export function blockedModelRequestCount() {
-  return blockedModelRequests.length;
-}
-
-function requestUrl(input: RequestInfo | URL) {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.href;
-  return input.url;
-}
-
-function isModelHost(hostname: string) {
-  return MODEL_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
-}
-
-function installModelNetworkGuard() {
-  if (guardInstalled) return;
-  guardInstalled = true;
-  const original = globalThis.fetch.bind(globalThis);
-  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = requestUrl(input);
-    let hostname = "";
-    try {
-      hostname = new URL(url, "http://127.0.0.1").hostname;
-    } catch {
-      hostname = "";
-    }
-    if (isModelHost(hostname)) {
-      blockedModelRequests.push(url);
-      throw new Error(`Refusing network model request during local visual tests: ${url}`);
-    }
-    return original(input, init);
-  };
+  return blockedModelHosts().length;
 }
 
 function resolveClipCache() {
-  const candidates = [process.env.CLIP_CACHE_DIR, path.resolve(process.cwd(), "scripts/.clip-cache")].filter(
-    (value): value is string => Boolean(value),
-  );
+  const repoCache = path.resolve(process.cwd(), "scripts/.clip-cache");
+  const candidates = process.env.CLIP_CACHE_DIR ? [process.env.CLIP_CACHE_DIR] : [clipCacheDirectory(), repoCache];
   for (const dir of candidates) {
     const missing = REQUIRED_FILES.filter((file) => !fs.existsSync(path.join(dir, file)));
     if (missing.length === 0) return dir;
   }
+  const onnx = clipOnnxFiles().join(" and ");
   throw new Error(
-    `Local CLIP cache for ${CLIP_MODEL} is incomplete. Looked in: ${candidates.join(", ") || "(none)"}. Expected onnx/vision_model.onnx and onnx/text_model.onnx under scripts/.clip-cache or CLIP_CACHE_DIR. Refusing to download model files.`,
+    `Local CLIP cache for ${CLIP_MODEL} (${CLIP_DEVICE}/${CLIP_DTYPE}) is incomplete. Looked in: ${candidates.join(", ")}. Expected ${onnx}. clip:setup writes ${clipCacheDirectory()} unless CLIP_CACHE_DIR is set. Refusing to download model files.`,
   );
 }
 
@@ -110,7 +93,7 @@ function dot(left: Embedding, right: Embedding) {
 
 function loadClip() {
   runtimePromise ??= (async () => {
-    installModelNetworkGuard();
+    installModelHostGuard();
     const cacheDir = resolveClipCache();
     const transformers = await import("@huggingface/transformers");
     const { env, AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection, RawImage } =
@@ -121,12 +104,13 @@ function loadClip() {
     env.useFSCache = true;
     env.cacheDir = cacheDir;
     env.fetch = globalThis.fetch;
-    const localOnly = { local_files_only: true as const };
+    const localFiles = { local_files_only: true as const };
+    const localModel = { ...localFiles, device: CLIP_DEVICE, dtype: CLIP_DTYPE };
     const [processor, visionModel, tokenizer, textModel] = await Promise.all([
-      AutoProcessor.from_pretrained(CLIP_MODEL, localOnly),
-      CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL, localOnly),
-      AutoTokenizer.from_pretrained(CLIP_MODEL, localOnly),
-      CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL, localOnly),
+      AutoProcessor.from_pretrained(CLIP_MODEL, localFiles),
+      CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL, localModel),
+      AutoTokenizer.from_pretrained(CLIP_MODEL, localFiles),
+      CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL, localModel),
     ]);
     const textCache = new Map<string, Embedding>();
 
@@ -153,10 +137,45 @@ function loadClip() {
     }
 
     console.log(`CLIP cache: ${cacheDir}`);
+    console.log(`CLIP dtype: ${CLIP_DEVICE}/${CLIP_DTYPE}`);
     console.log("CLIP remote models: disabled");
     return { embedImage, embedText };
   })();
   return runtimePromise;
+}
+
+export async function watchBrowserModelRequests(page: Page) {
+  resetBlockedModelHosts();
+  const seen: string[] = [];
+  browserBlocked.set(page, seen);
+  await page.route("**/*", async (route) => {
+    const hostname = hostnameOf(route.request().url());
+    if (isModelHost(hostname)) {
+      seen.push(hostname);
+      await route.abort("blockedbyclient");
+      return;
+    }
+    await route.continue();
+  });
+  const response = await page.request.get("/api/model-host-guard");
+  if (response.status() !== 200) {
+    throw new Error("The app server is not blocking model hosts. Start it with VISUAL_TEST_GUARD=1.");
+  }
+  const body = (await response.json()) as { blocked?: number };
+  serverBaseline.set(page, body.blocked ?? 0);
+}
+
+export async function modelRequestLeak(page: Page) {
+  const response = await page.request.get("/api/model-host-guard");
+  if (response.status() !== 200) {
+    return "The app server is not blocking model hosts. Start it with VISUAL_TEST_GUARD=1.";
+  }
+  const body = (await response.json()) as { blocked?: number };
+  const serverBlocked = (body.blocked ?? 0) - (serverBaseline.get(page) ?? 0);
+  const browser = browserBlocked.get(page) ?? [];
+  const worker = blockedModelRequestCount();
+  if (serverBlocked === 0 && browser.length === 0 && worker === 0) return null;
+  return `Model hosts were contacted (browser ${browser.length}, worker ${worker}, server ${serverBlocked}).`;
 }
 
 export async function createLocalClipAgent(page: Page) {
@@ -168,9 +187,9 @@ export async function createLocalClipAgent(page: Page) {
       const image = await clip.embedImage(png);
       const similarity = dot(image, await clip.embedText(description));
       const unrelated = dot(image, await clip.embedText(UNRELATED_SCENE));
-      if (!(similarity > unrelated)) {
+      if (!(similarity >= MIN_LAYOUT_SIMILARITY && similarity > unrelated)) {
         throw new Error(
-          `Expected the page to show ${JSON.stringify(description)}. CLIP similarity ${similarity.toFixed(4)} was not above the unrelated scene (${unrelated.toFixed(4)}).`,
+          `Expected the page to show ${JSON.stringify(description)}. CLIP similarity ${similarity.toFixed(4)} must be at least ${MIN_LAYOUT_SIMILARITY.toFixed(4)} and above the unrelated scene (${unrelated.toFixed(4)}).`,
         );
       }
       return similarity;
